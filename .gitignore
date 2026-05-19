@@ -18,3 +18,7 @@ build/
 *.dSYM
 Pods/
 .build/
+
+# Fastlane
+fastlane/.env.local
+vendor/

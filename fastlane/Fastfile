@@ -1,0 +1,353 @@
+default_platform(:ios)
+
+platform :ios do
+
+  APP_BUNDLE_ID = "com.keisukearai.MyGeoWarp"
+
+  def api_key
+    app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_filepath: ENV["ASC_KEY_FILEPATH"],
+    )
+  end
+
+  def current_version
+    get_version_number(xcodeproj: "MyGeoWarp.xcodeproj", target: "MyGeoWarp")
+  end
+
+  # ASC REST API クライアント（JWT認証）
+  def make_asc_client
+    require 'jwt'
+    require 'openssl'
+    require 'net/http'
+    require 'json'
+
+    private_key = OpenSSL::PKey::EC.new(File.read(ENV["ASC_KEY_FILEPATH"]))
+    jwt_token = JWT.encode(
+      { iss: ENV["ASC_ISSUER_ID"], iat: Time.now.to_i, exp: Time.now.to_i + 1200, aud: "appstoreconnect-v1" },
+      private_key, "ES256",
+      { kid: ENV["ASC_KEY_ID"], typ: "JWT" }
+    )
+
+    http = Net::HTTP.new("api.appstoreconnect.apple.com", 443)
+    http.use_ssl = true
+
+    {
+      get: ->(path) {
+        req = Net::HTTP::Get.new(path)
+        req["Authorization"] = "Bearer #{jwt_token}"
+        req["Content-Type"] = "application/json"
+        JSON.parse(http.request(req).body)
+      },
+      post: ->(path, body) {
+        req = Net::HTTP::Post.new(path)
+        req["Authorization"] = "Bearer #{jwt_token}"
+        req["Content-Type"] = "application/json"
+        req.body = body
+        resp = http.request(req)
+        [resp.code.to_i, resp.body.empty? ? {} : JSON.parse(resp.body)]
+      },
+      patch: ->(path, body) {
+        req = Net::HTTP::Patch.new(path)
+        req["Authorization"] = "Bearer #{jwt_token}"
+        req["Content-Type"] = "application/json"
+        req.body = body
+        resp = http.request(req)
+        [resp.code.to_i, resp.body.empty? ? {} : JSON.parse(resp.body)]
+      }
+    }
+  end
+
+  def get_app_id(client)
+    resp = client[:get].call("/v1/apps?filter[bundleId]=#{APP_BUNDLE_ID}")
+    id = resp.dig("data", 0, "id")
+    UI.user_error!("App not found in App Store Connect") unless id
+    id
+  end
+
+  # 無料価格スケジュールを設定（manualPricesが未設定の場合のみ）
+  def ensure_free_pricing(client, app_id)
+    price_data = client[:get].call("/v1/apps/#{app_id}/appPriceSchedule")
+    if price_data["data"]
+      schedule_id = price_data.dig("data", "id")
+      prices = client[:get].call("/v1/appPriceSchedules/#{schedule_id}/manualPrices")
+      if prices["data"] && !prices["data"].empty?
+        UI.success("Pricing already configured, skipping")
+        return
+      end
+      UI.message("Price schedule exists but has no prices, will recreate with prices")
+    end
+
+    points = client[:get].call("/v1/apps/#{app_id}/appPricePoints?filter[territory]=USA")
+    free_point = points["data"]&.find { |p| p.dig("attributes", "customerPrice").to_f == 0 }
+    UI.user_error!("Free price point not found") unless free_point
+
+    code, result = client[:post].call("/v1/appPriceSchedules", {
+      data: {
+        type: "appPriceSchedules",
+        relationships: {
+          app: { data: { type: "apps", id: app_id } },
+          baseTerritory: { data: { type: "territories", id: "USA" } },
+          manualPrices: { data: [{ type: "appPrices", id: "${price}" }] }
+        }
+      },
+      included: [{
+        type: "appPrices",
+        id: "${price}",
+        attributes: { startDate: nil },
+        relationships: {
+          appPricePoint: { data: { type: "appPricePoints", id: free_point["id"] } }
+        }
+      }]
+    }.to_json)
+
+    code == 201 ? UI.success("App pricing set to free") : UI.user_error!("Failed to set pricing: #{result}")
+  end
+
+  # 全Territory の配信設定（未設定の場合のみ）
+  def ensure_availability(client, app_id)
+    territories = client[:get].call("/v1/territories?limit=200")
+    territory_ids = territories["data"]&.map { |t| t["id"] } || []
+    return if territory_ids.empty?
+
+    ta_included = territory_ids.each_with_index.map do |tid, i|
+      { type: "territoryAvailabilities", id: "${ta_#{i}}", attributes: { available: true, releaseDate: nil, preOrderEnabled: false }, relationships: { territory: { data: { type: "territories", id: tid } } } }
+    end
+    ta_refs = territory_ids.each_with_index.map { |_, i| { type: "territoryAvailabilities", id: "${ta_#{i}}" } }
+
+    code, result = client[:post].call("/v2/appAvailabilities", {
+      data: {
+        type: "appAvailabilities",
+        attributes: { availableInNewTerritories: true },
+        relationships: {
+          app: { data: { type: "apps", id: app_id } },
+          territoryAvailabilities: { data: ta_refs }
+        }
+      },
+      included: ta_included
+    }.to_json)
+
+    if code == 201
+      UI.success("App set to available in #{territory_ids.length} territories")
+    elsif code == 409
+      UI.success("App availability already configured, skipping")
+    else
+      UI.error("Failed to set availability: #{result}")
+    end
+  end
+
+  # PREPARE_FOR_SUBMISSION 状態のバージョンを審査提出（新 reviewSubmissions API）
+  def submit_version(client, app_id)
+    versions = client[:get].call("/v1/apps/#{app_id}/appStoreVersions?filter[appStoreState]=PREPARE_FOR_SUBMISSION")
+    version = versions["data"]&.first
+    UI.user_error!("No version in PREPARE_FOR_SUBMISSION state found") unless version
+    version_id = version["id"]
+    UI.message("Found version #{version.dig('attributes', 'versionString')} (#{version_id})")
+
+    subs = client[:get].call("/v1/reviewSubmissions?filter[app]=#{app_id}&filter[platform]=IOS&filter[state]=READY_FOR_REVIEW,WAITING_FOR_REVIEW")
+    submission_id = subs.dig("data", 0, "id")
+
+    unless submission_id
+      code, result = client[:post].call("/v1/reviewSubmissions", {
+        data: {
+          type: "reviewSubmissions",
+          attributes: { platform: "IOS" },
+          relationships: { app: { data: { type: "apps", id: app_id } } }
+        }
+      }.to_json)
+      UI.user_error!("Failed to create review submission: #{result}") unless code == 201
+      submission_id = result.dig("data", "id")
+      UI.message("Created review submission #{submission_id}")
+    end
+
+    code, result = client[:post].call("/v1/reviewSubmissionItems", {
+      data: {
+        type: "reviewSubmissionItems",
+        relationships: {
+          reviewSubmission: { data: { type: "reviewSubmissions", id: submission_id } },
+          appStoreVersion: { data: { type: "appStoreVersions", id: version_id } }
+        }
+      }
+    }.to_json)
+    UI.user_error!("Failed to add item: #{result}") unless [201, 409].include?(code)
+
+    code, result = client[:patch].call("/v1/reviewSubmissions/#{submission_id}", {
+      data: {
+        type: "reviewSubmissions",
+        id: submission_id,
+        attributes: { submitted: true }
+      }
+    }.to_json)
+    code == 200 ? UI.success("Submitted for review!") : UI.user_error!("Failed to submit: #{result}")
+  end
+
+  # 年齢レーティング 4+ を設定（appInfos 経由）
+  def ensure_age_rating(client, app_id)
+    infos = client[:get].call("/v1/apps/#{app_id}/appInfos")
+    info = infos["data"]&.find { |i| i.dig("attributes", "appStoreState") == "PREPARE_FOR_SUBMISSION" }
+    info ||= infos["data"]&.first
+    unless info
+      UI.message("No appInfo found, skipping age rating")
+      return
+    end
+
+    info_id = info["id"]
+    rating_resp = client[:get].call("/v1/appInfos/#{info_id}/ageRatingDeclaration")
+    rating_id = rating_resp.dig("data", "id")
+    unless rating_id
+      UI.message("Age rating declaration not found, skipping")
+      return
+    end
+
+    attrs = rating_resp.dig("data", "attributes")
+    if attrs && !attrs["advertising"].nil?
+      UI.success("Age rating already configured, skipping")
+      return
+    end
+
+    code, result = client[:patch].call("/v1/ageRatingDeclarations/#{rating_id}", {
+      data: {
+        type: "ageRatingDeclarations",
+        id: rating_id,
+        attributes: {
+          ageAssurance: false,
+          advertising: false,
+          alcoholTobaccoOrDrugUseOrReferences: "NONE",
+          contests: "NONE",
+          gambling: false,
+          gamblingSimulated: "NONE",
+          gunsOrOtherWeapons: "NONE",
+          healthOrWellnessTopics: false,
+          horrorOrFearThemes: "NONE",
+          lootBox: false,
+          matureOrSuggestiveThemes: "NONE",
+          medicalOrTreatmentInformation: "NONE",
+          messagingAndChat: false,
+          parentalControls: false,
+          profanityOrCrudeHumor: "NONE",
+          sexualContentGraphicAndNudity: "NONE",
+          sexualContentOrNudity: "NONE",
+          unrestrictedWebAccess: false,
+          userGeneratedContent: false,
+          violenceCartoonOrFantasy: "NONE",
+          violenceRealistic: "NONE",
+          violenceRealisticProlongedGraphicOrSadistic: "NONE",
+        }
+      }
+    }.to_json)
+
+    code == 200 ? UI.success("Age rating set to 4+") : UI.error("Failed to set age rating: #{result}")
+  end
+
+  # メタデータのみアップロード
+  lane :upload_metadata do
+    upload_to_app_store(
+      api_key: api_key,
+      app_identifier: APP_BUNDLE_ID,
+      app_version: current_version,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      run_precheck_before_submit: false,
+      force: true,
+      copyright: "#{Time.now.year} Keisuke Arai",
+      app_review_information: {
+        first_name: "Keisuke",
+        last_name: "Arai",
+        phone_number: ENV["REVIEW_PHONE"],
+        email_address: ENV["REVIEW_EMAIL"],
+        demo_user: "",
+        demo_password: "",
+        notes: "No sign-in is required. All features are available immediately after launch.",
+      },
+    )
+  end
+
+  # スクリーンショットのみアップロード
+  lane :upload_screenshots do
+    upload_to_app_store(
+      api_key: api_key,
+      app_identifier: APP_BUNDLE_ID,
+      app_version: current_version,
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_screenshots: false,
+      overwrite_screenshots: true,
+      run_precheck_before_submit: false,
+      force: true,
+    )
+  end
+
+  # TestFlight にアップロード
+  lane :beta do
+    update_code_signing_settings(
+      use_automatic_signing: true,
+      path: "MyGeoWarp.xcodeproj",
+      team_id: ENV["TEAM_ID"],
+    )
+    increment_build_number(xcodeproj: "MyGeoWarp.xcodeproj")
+    build_app(
+      scheme: "MyGeoWarp",
+      export_method: "app-store",
+      export_xcargs: "-allowProvisioningUpdates",
+      export_options: {
+        signingStyle: "automatic",
+        teamID: ENV["TEAM_ID"],
+      },
+    )
+    upload_to_testflight(api_key: api_key)
+  end
+
+  # 審査提出のみ（バイナリ提出済みの場合）
+  lane :submit do
+    client = make_asc_client
+    app_id = get_app_id(client)
+    submit_version(client, app_id)
+  end
+
+  # App Store に申請
+  lane :release do
+    client = make_asc_client
+    app_id = get_app_id(client)
+    ensure_free_pricing(client, app_id)
+    ensure_availability(client, app_id)
+
+    update_code_signing_settings(
+      use_automatic_signing: true,
+      path: "MyGeoWarp.xcodeproj",
+      team_id: ENV["TEAM_ID"],
+    )
+    increment_build_number(xcodeproj: "MyGeoWarp.xcodeproj")
+    build_app(
+      scheme: "MyGeoWarp",
+      export_method: "app-store",
+      export_xcargs: "-allowProvisioningUpdates",
+      export_options: {
+        signingStyle: "automatic",
+        teamID: ENV["TEAM_ID"],
+      },
+    )
+
+    # バイナリをアップロード（まだ審査提出しない）
+    upload_to_app_store(
+      api_key: api_key,
+      app_identifier: APP_BUNDLE_ID,
+      submit_for_review: false,
+      skip_screenshots: true,
+      skip_metadata: true,
+      run_precheck_before_submit: false,
+      force: true,
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        content_rights_contains_third_party_content: false,
+      },
+    )
+
+    # 年齢レーティング 4+ を設定
+    ensure_age_rating(client, app_id)
+
+    # 審査提出（ASC REST API で直接 POST）
+    submit_version(client, app_id)
+  end
+
+end
