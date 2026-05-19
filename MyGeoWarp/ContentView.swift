@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 // MARK: - Shapes (21 types)
 
@@ -44,12 +45,12 @@ struct ParticlePools {
 
     static func make() -> ParticlePools {
         ParticlePools(
-            tunnel: makeParticles(count: 40),
-            vortex: makeParticles(count: 40),
-            wave:   makeParticles(count: 40),
-            helix:  makeParticles(count: 40),
-            burst:  makeParticles(count: 40),
-            blend:  makeParticles(count: 100)
+            tunnel: makeParticles(count: 80),
+            vortex: makeParticles(count: 80),
+            wave:   makeParticles(count: 80),
+            helix:  makeParticles(count: 80),
+            burst:  makeParticles(count: 80),
+            blend:  makeParticles(count: 200)
         )
     }
 
@@ -187,7 +188,7 @@ struct GeoWarpCanvas: View {
 
     private func getAttractors(size: CGSize, t: Double) -> [CGPoint] {
         let cx = size.width / 2, cy = size.height / 2
-        let n    = 1 + Int(chaos * 4.99)
+        let n    = 1 + Int(chaos * 9.99)
         let dist = chaos * min(cx, cy) * 0.28
         return (0..<n).map { i in
             let ang = Double(i) / Double(n) * 2 * Double.pi + t * tempoRate * 0.22
@@ -277,7 +278,9 @@ struct GeoWarpCanvas: View {
 
             let px = mA.px + (mB.px - mA.px) * segF
             let py = mA.py + (mB.py - mA.py) * segF
-            let sz = mA.sz + (mB.sz - mA.sz) * segF
+            let szBase = mA.sz + (mB.sz - mA.sz) * segF
+            let tunnelRetain = max(0.0, 1.0 - w * 3.5)
+            let sz = szBase + (tSz - szBase) * tunnelRetain * 0.5
             let op = mA.op + (mB.op - mA.op) * segF
 
             let rot  = t * p.rotRate * (1 + w * 2.0)
@@ -712,6 +715,13 @@ struct ContentView: View {
     @State private var tempo:      Double = 0.35
     @State private var colorStyle: Double = 0.0
 
+    @State private var showUI:          Bool   = true
+    @State private var isAutoMode:      Bool   = false
+    @State private var autoTargetWarp:  Double = 0.0
+    @State private var autoTargetChaos: Double = 0.0
+    @State private var autoNextWarp:    Date   = .distantPast
+    @State private var autoNextChaos:   Date   = .distantPast
+
     @StateObject private var recorder = WallpaperRecorder()
 
     private let pools = ParticlePools.make()
@@ -727,17 +737,51 @@ struct ContentView: View {
                     let canvas = GeoWarpCanvas(t: t, warp: warp, chaos: chaos,
                                               tempo: tempo, colorStyle: colorStyle, pools: pools)
                     let colors = canvas.interpolatedColors(at: t)
-                    VStack(spacing: 0) {
-                        headerView(colors: colors)
+                    ZStack {
                         canvas
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        controlsView(colors: colors)
-                            .padding(.bottom, 40)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    showUI.toggle()
+                                }
+                            }
+                        VStack(spacing: 0) {
+                            headerView(colors: colors)
+                            Spacer()
+                            controlsView(colors: colors)
+                                .padding(.bottom, 40)
+                        }
+                        .opacity(showUI ? 1 : 0)
+                        .allowsHitTesting(showUI)
+                        .animation(.easeInOut(duration: 0.3), value: showUI)
                     }
                 }
             }
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            warp       = .random(in: 0...1)
+            chaos      = .random(in: 0...1)
+            colorStyle = .random(in: 0...1)
+        }
+        .onReceive(Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()) { now in
+            guard isAutoMode else { return }
+            let steps: [Double] = [0.0, 0.25, 0.5, 0.75, 1.0]
+            if now >= autoNextWarp {
+                let cur = steps.min(by: { abs($0 - autoTargetWarp) < abs($1 - autoTargetWarp) }) ?? 0.0
+                let idx = steps.firstIndex(of: cur) ?? 0
+                autoTargetWarp = steps[(idx + 1) % steps.count]
+                autoNextWarp   = now.addingTimeInterval(30)
+            }
+            if now >= autoNextChaos {
+                let cur = steps.min(by: { abs($0 - autoTargetChaos) < abs($1 - autoTargetChaos) }) ?? 0.0
+                let idx = steps.firstIndex(of: cur) ?? 0
+                autoTargetChaos = steps[(idx + 1) % steps.count]
+                autoNextChaos   = now.addingTimeInterval(30)
+            }
+            warp  += (autoTargetWarp  - warp)  * 0.0016
+            chaos += (autoTargetChaos - chaos) * 0.0016
+        }
     }
 
     // MARK: - Recording Overlay
@@ -805,25 +849,61 @@ struct ContentView: View {
 
     @ViewBuilder
     private func wallpaperButton(colors: ColorPair) -> some View {
-        Button {
-            Task {
-                await recorder.start(
-                    warp: warp, chaos: chaos, tempo: tempo,
-                    colorStyle: colorStyle, pools: pools
-                )
+        HStack(spacing: 10) {
+            Button {
+                isAutoMode.toggle()
+                if isAutoMode {
+                    let steps: [Double] = [0.0, 0.25, 0.5, 0.75, 1.0]
+                    warp  = steps.randomElement()!
+                    chaos = steps.randomElement()!
+                    autoTargetWarp  = warp
+                    autoTargetChaos = chaos
+                    autoNextWarp    = .distantPast
+                    autoNextChaos   = Date().addingTimeInterval(15)
+                }
+            } label: {
+                Text("AUTO")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(1)
+                    .foregroundColor(isAutoMode ? .black : colors.primary)
+                    .frame(width: 44)
+                    .padding(.vertical, 14)
+                    .background(
+                        isAutoMode
+                            ? LinearGradient(colors: [Color.white.opacity(0.90), Color.white.opacity(0.82)],
+                                             startPoint: .leading, endPoint: .trailing)
+                            : LinearGradient(colors: [colors.primary.opacity(0.12),
+                                                      colors.primary.opacity(0.12)],
+                                             startPoint: .leading, endPoint: .trailing)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .strokeBorder(colors.primary.opacity(isAutoMode ? 0 : 0.35), lineWidth: 1)
+                    )
             }
-        } label: {
-            Text("Save as Live Photo")
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .tracking(2)
-                .foregroundColor(.black)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(
-                    LinearGradient(colors: [colors.primary, colors.glow],
-                                   startPoint: .leading, endPoint: .trailing)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+            .shadow(color: isAutoMode ? Color.white.opacity(0.35) : .clear, radius: 8)
+
+            Button {
+                Task {
+                    await recorder.start(
+                        warp: warp, chaos: chaos, tempo: tempo,
+                        colorStyle: colorStyle, pools: pools
+                    )
+                }
+            } label: {
+                Text("Save as Live Photo")
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .tracking(2)
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        LinearGradient(colors: [colors.primary, colors.glow],
+                                       startPoint: .leading, endPoint: .trailing)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
         }
         .padding(.top, 4)
     }
