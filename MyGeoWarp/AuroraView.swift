@@ -1,4 +1,20 @@
 import SwiftUI
+import Combine
+
+// MARK: - Aurora Frame (for Live Photo recording)
+
+struct AuroraFrame: View {
+    var t: Double
+    let speed: Double
+    let spread: Double
+    let colorParam: Double
+    let size: CGSize
+
+    var body: some View {
+        AuroraCanvas(t: t, speed: speed, spread: spread, colorParam: colorParam)
+            .frame(width: size.width, height: size.height)
+    }
+}
 
 // MARK: - Aurora Canvas
 
@@ -177,30 +193,85 @@ struct AuroraView: View {
     @State private var color:  Double = 0.0
     @State private var showUI: Bool   = true
 
+    @State private var isAutoMode:     Bool   = false
+    @State private var autoTargetSpeed: Double = 0.30
+    @State private var autoTargetColor: Double = 0.0
+    @State private var autoNextSpeed:   Date   = .distantPast
+    @State private var autoNextColor:   Date   = .distantPast
+
+    @StateObject private var recorder = WallpaperRecorder()
+
     var body: some View {
         ZStack {
             Color(red: 0.01, green: 0.02, blue: 0.08).ignoresSafeArea()
-            TimelineView(.animation) { tl in
-                let t = tl.date.timeIntervalSinceReferenceDate
-                ZStack {
-                    AuroraCanvas(t: t, speed: speed, spread: spread, colorParam: color)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                showUI.toggle()
+            if recorder.isActive {
+                recordingOverlay
+            } else {
+                TimelineView(.animation) { tl in
+                    let t = tl.date.timeIntervalSinceReferenceDate
+                    ZStack {
+                        AuroraCanvas(t: t, speed: speed, spread: spread, colorParam: color)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    showUI.toggle()
+                                }
                             }
-                        }
 
-                    VStack(spacing: 0) {
-                        headerView
-                        Spacer()
-                        controlsView
-                            .padding(.bottom, 40)
+                        VStack(spacing: 0) {
+                            headerView
+                            Spacer()
+                            controlsView
+                                .padding(.bottom, 40)
+                        }
+                        .opacity(showUI ? 1 : 0)
+                        .allowsHitTesting(showUI)
+                        .animation(.easeInOut(duration: 0.3), value: showUI)
                     }
-                    .opacity(showUI ? 1 : 0)
-                    .allowsHitTesting(showUI)
-                    .animation(.easeInOut(duration: 0.3), value: showUI)
                 }
+            }
+        }
+        .onReceive(Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()) { now in
+            guard isAutoMode else { return }
+            if now >= autoNextSpeed {
+                autoTargetSpeed = Double.random(in: 0...1)
+                autoNextSpeed   = now.addingTimeInterval(18)
+            }
+            if now >= autoNextColor {
+                autoTargetColor = Double.random(in: 0...1)
+                autoNextColor   = now.addingTimeInterval(24)
+            }
+            speed += (autoTargetSpeed - speed) * 0.0012
+            color += (autoTargetColor - color) * 0.0008
+        }
+    }
+
+    // MARK: - Recording Overlay
+
+    @ViewBuilder
+    private var recordingOverlay: some View {
+        ZStack {
+            Color(red: 0.01, green: 0.02, blue: 0.08).ignoresSafeArea()
+            VStack(spacing: 20) {
+                Spacer()
+                Text(recorder.statusText)
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                if case .rendering(let p) = recorder.state {
+                    VStack(spacing: 8) {
+                        ProgressView(value: p)
+                            .tint(uiColor)
+                            .padding(.horizontal, 40)
+                        Text("\(Int(p * 100))%")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                } else if case .saving = recorder.state {
+                    ProgressView().tint(uiColor)
+                }
+                Spacer()
             }
         }
     }
@@ -257,8 +328,63 @@ struct AuroraView: View {
             sliderRow("SPEED",  speedLabel,  value: $speed)
             sliderRow("SPREAD", spreadLabel, value: $spread)
             colorSliderRow
+            actionButtons
         }
         .padding(.horizontal, 24).padding(.top, 20)
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        HStack(spacing: 10) {
+            Button {
+                isAutoMode.toggle()
+                if isAutoMode {
+                    autoTargetSpeed = Double.random(in: 0...1)
+                    autoTargetColor = Double.random(in: 0...1)
+                    autoNextSpeed   = .distantPast
+                    autoNextColor   = Date().addingTimeInterval(12)
+                }
+            } label: {
+                Text("AUTO")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(1)
+                    .foregroundColor(isAutoMode ? .black : uiColor)
+                    .frame(width: 44)
+                    .padding(.vertical, 14)
+                    .background(
+                        isAutoMode
+                            ? LinearGradient(colors: [uiColor.opacity(0.95), uiColor.opacity(0.82)],
+                                             startPoint: .leading, endPoint: .trailing)
+                            : LinearGradient(colors: [uiColor.opacity(0.12), uiColor.opacity(0.12)],
+                                             startPoint: .leading, endPoint: .trailing)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .strokeBorder(uiColor.opacity(isAutoMode ? 0 : 0.35), lineWidth: 1)
+                    )
+            }
+            .shadow(color: isAutoMode ? uiColor.opacity(0.45) : .clear, radius: 8)
+
+            Button {
+                Task {
+                    await recorder.startAurora(speed: speed, spread: spread, colorParam: color)
+                }
+            } label: {
+                Text("Save as Live Photo")
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .tracking(2)
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        LinearGradient(colors: [uiColor, uiColor.opacity(0.75)],
+                                       startPoint: .leading, endPoint: .trailing)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+        }
+        .padding(.top, 4)
     }
 
     @ViewBuilder
