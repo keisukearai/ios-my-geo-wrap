@@ -55,6 +55,12 @@ platform :ios do
         req.body = body
         resp = http.request(req)
         [resp.code.to_i, resp.body.empty? ? {} : JSON.parse(resp.body)]
+      },
+      delete: ->(path) {
+        req = Net::HTTP::Delete.new(path)
+        req["Authorization"] = "Bearer #{jwt_token}"
+        resp = http.request(req)
+        resp.code.to_i
       }
     }
   end
@@ -137,7 +143,7 @@ platform :ios do
     end
   end
 
-  # PREPARE_FOR_SUBMISSION 状態のバージョンを審査提出（新 reviewSubmissions API）
+  # PREPARE_FOR_SUBMISSION 状態のバージョンを審査提出
   def submit_version(client, app_id)
     versions = client[:get].call("/v1/apps/#{app_id}/appStoreVersions?filter[appStoreState]=PREPARE_FOR_SUBMISSION")
     version = versions["data"]&.first
@@ -145,41 +151,15 @@ platform :ios do
     version_id = version["id"]
     UI.message("Found version #{version.dig('attributes', 'versionString')} (#{version_id})")
 
-    subs = client[:get].call("/v1/reviewSubmissions?filter[app]=#{app_id}&filter[platform]=IOS&filter[state]=READY_FOR_REVIEW,WAITING_FOR_REVIEW")
-    submission_id = subs.dig("data", 0, "id")
-
-    unless submission_id
-      code, result = client[:post].call("/v1/reviewSubmissions", {
-        data: {
-          type: "reviewSubmissions",
-          attributes: { platform: "IOS" },
-          relationships: { app: { data: { type: "apps", id: app_id } } }
-        }
-      }.to_json)
-      UI.user_error!("Failed to create review submission: #{result}") unless code == 201
-      submission_id = result.dig("data", "id")
-      UI.message("Created review submission #{submission_id}")
-    end
-
-    code, result = client[:post].call("/v1/reviewSubmissionItems", {
+    code, result = client[:post].call("/v1/appStoreVersionSubmissions", {
       data: {
-        type: "reviewSubmissionItems",
+        type: "appStoreVersionSubmissions",
         relationships: {
-          reviewSubmission: { data: { type: "reviewSubmissions", id: submission_id } },
           appStoreVersion: { data: { type: "appStoreVersions", id: version_id } }
         }
       }
     }.to_json)
-    UI.user_error!("Failed to add item: #{result}") unless [201, 409].include?(code)
-
-    code, result = client[:patch].call("/v1/reviewSubmissions/#{submission_id}", {
-      data: {
-        type: "reviewSubmissions",
-        id: submission_id,
-        attributes: { submitted: true }
-      }
-    }.to_json)
-    code == 200 ? UI.success("Submitted for review!") : UI.user_error!("Failed to submit: #{result}")
+    code == 201 ? UI.success("Submitted for review!") : UI.user_error!("Failed to submit: #{result}")
   end
 
   # 年齢レーティング 4+ を設定（appInfos 経由）
@@ -238,6 +218,34 @@ platform :ios do
     }.to_json)
 
     code == 200 ? UI.success("Age rating set to 4+") : UI.error("Failed to set age rating: #{result}")
+  end
+
+  # カテゴリを ENTERTAINMENT に設定（未設定の場合のみ）
+  def ensure_category(client, app_id)
+    infos = client[:get].call("/v1/apps/#{app_id}/appInfos")
+    info = infos["data"]&.find { |i| i.dig("attributes", "appStoreState") == "PREPARE_FOR_SUBMISSION" }
+    info ||= infos["data"]&.first
+    unless info
+      UI.message("No appInfo found, skipping category")
+      return
+    end
+
+    info_id = info["id"]
+    if info.dig("attributes", "primaryCategory").to_s.empty? || info.dig("attributes", "primaryCategory").to_s == ""
+      # API から取得できるか確認（relationships 経由）
+    end
+
+    code, result = client[:patch].call("/v1/appInfos/#{info_id}", {
+      data: {
+        type: "appInfos",
+        id: info_id,
+        relationships: {
+          primaryCategory: { data: { type: "appCategories", id: "ENTERTAINMENT" } }
+        }
+      }
+    }.to_json)
+
+    code == 200 ? UI.success("Primary category set to ENTERTAINMENT") : UI.error("Failed to set category: #{result}")
   end
 
   # メタデータのみアップロード
@@ -304,11 +312,33 @@ platform :ios do
     upload_to_testflight(api_key: api_key)
   end
 
-  # 審査提出のみ（バイナリ提出済みの場合）
+  # 審査提出のみ（バイナリ・メタデータ・スクリーンショット提出済みの場合）
   lane :submit do
-    client = make_asc_client
-    app_id = get_app_id(client)
-    submit_version(client, app_id)
+    upload_to_app_store(
+      api_key: api_key,
+      app_identifier: APP_BUNDLE_ID,
+      app_version: current_version,
+      submit_for_review: true,
+      automatic_release: true,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: true,
+      run_precheck_before_submit: false,
+      force: true,
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        content_rights_contains_third_party_content: false,
+      },
+      app_review_information: {
+        first_name: "Keisuke",
+        last_name: "Arai",
+        phone_number: ENV["REVIEW_PHONE"],
+        email_address: ENV["REVIEW_EMAIL"],
+        demo_user: "",
+        demo_password: "",
+        notes: "No sign-in is required. All features are available immediately after launch.",
+      },
+    )
   end
 
   # App Store に申請
@@ -328,32 +358,53 @@ platform :ios do
       scheme: "MyGeoWarp",
       export_method: "app-store",
       export_xcargs: "-allowProvisioningUpdates",
+      xcodebuild_formatter: "",
+      silent: true,
       export_options: {
         signingStyle: "automatic",
         teamID: ENV["TEAM_ID"],
       },
     )
 
-    # バイナリをアップロード（まだ審査提出しない）
+    # スクリーンショットを ja にコピー（未配置の場合）
+    en_dir = File.expand_path("../screenshots/en-US", __FILE__)
+    ja_dir = File.expand_path("../screenshots/ja", __FILE__)
+    if Dir.exist?(en_dir) && !Dir.glob("#{en_dir}/*.{png,PNG,jpg,JPG,jpeg,JPEG}").empty? && Dir.glob("#{ja_dir}/*.{png,PNG,jpg,JPG,jpeg,JPEG}").empty?
+      FileUtils.cp(Dir.glob("#{en_dir}/*.{png,PNG,jpg,JPG,jpeg,JPEG}"), ja_dir)
+      UI.success("Copied en-US screenshots to ja")
+    end
+
+    # カテゴリと年齢レーティングを設定
+    ensure_category(client, app_id)
+    ensure_age_rating(client, app_id)
+
+    # メタデータ・スクリーンショット・バイナリをアップロードして審査提出
     upload_to_app_store(
       api_key: api_key,
       app_identifier: APP_BUNDLE_ID,
-      submit_for_review: false,
-      skip_screenshots: true,
-      skip_metadata: true,
+      app_version: current_version,
+      submit_for_review: true,
+      automatic_release: true,
+      skip_screenshots: false,
+      overwrite_screenshots: true,
+      skip_metadata: false,
       run_precheck_before_submit: false,
       force: true,
+      copyright: "#{Time.now.year} Keisuke Arai",
       submission_information: {
         export_compliance_uses_encryption: false,
         content_rights_contains_third_party_content: false,
       },
+      app_review_information: {
+        first_name: "Keisuke",
+        last_name: "Arai",
+        phone_number: ENV["REVIEW_PHONE"],
+        email_address: ENV["REVIEW_EMAIL"],
+        demo_user: "",
+        demo_password: "",
+        notes: "No sign-in is required. All features are available immediately after launch.",
+      },
     )
-
-    # 年齢レーティング 4+ を設定
-    ensure_age_rating(client, app_id)
-
-    # 審査提出（ASC REST API で直接 POST）
-    submit_version(client, app_id)
   end
 
 end
