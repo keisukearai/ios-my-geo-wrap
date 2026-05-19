@@ -265,6 +265,12 @@ platform :ios do
 
   # スクリーンショットのみアップロード
   lane :upload_screenshots do
+    en_dir = File.expand_path("../screenshots/en-US", __FILE__)
+    ja_dir = File.expand_path("../screenshots/ja", __FILE__)
+    if Dir.exist?(en_dir) && !Dir.glob("#{en_dir}/*.png").empty? && Dir.glob("#{ja_dir}/*.png").empty?
+      FileUtils.cp(Dir.glob("#{en_dir}/*.png"), ja_dir)
+      UI.success("Copied en-US screenshots to ja")
+    end
     upload_to_app_store(
       api_key: api_key,
       app_identifier: APP_BUNDLE_ID,
