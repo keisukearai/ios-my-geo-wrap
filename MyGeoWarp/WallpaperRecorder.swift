@@ -57,10 +57,10 @@ final class WallpaperRecorder: ObservableObject {
     var statusText: String {
         switch state {
         case .idle:               ""
-        case .rendering(let p):   "レンダリング中... \(Int(p * 100))%\n残り約\(remainingSeconds)秒"
-        case .saving:             "カメラロールに保存中..."
-        case .done:               "保存完了\nPhotosで壁紙に設定してください"
-        case .failed(let msg):    "保存失敗:\n\(msg)"
+        case .rendering(let p):   "Rendering... \(Int(p * 100))%\n~\(remainingSeconds)s remaining"
+        case .saving:             "Saving to Camera Roll..."
+        case .done:               "Saved\nSet as wallpaper in Photos"
+        case .failed(let msg):    "Save failed:\n\(msg)"
         }
     }
 
@@ -88,7 +88,7 @@ final class WallpaperRecorder: ObservableObject {
         let authStatus = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         print("[GeoWarp] Auth status: \(authStatus.rawValue)")
         guard authStatus == .authorized || authStatus == .limited else {
-            state = .failed("写真へのアクセスが拒否されました\n設定 > プライバシー > 写真 で許可してください\n(status: \(authStatus.rawValue))")
+            state = .failed("Photos access denied\nGo to Settings > Privacy > Photos to allow access\n(status: \(authStatus.rawValue))")
             try? await Task.sleep(for: .seconds(10))
             state = .idle
             return
@@ -352,9 +352,9 @@ final class WallpaperRecorder: ObservableObject {
 
         var errorDescription: String? {
             switch self {
-            case .renderFailed(let detail):     "レンダリング失敗: \(detail)"
-            case .noPermission:                 "写真アクセス拒否"
-            case .saveFailed:                   "JPEG書き出し失敗"
+            case .renderFailed(let detail):     "Render failed: \(detail)"
+            case .noPermission:                 "Photos access denied"
+            case .saveFailed:                   "JPEG export failed"
             case .saveFailedDetail(let detail): detail
             }
         }
