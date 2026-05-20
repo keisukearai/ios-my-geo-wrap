@@ -3,20 +3,23 @@ import SwiftUI
 // MARK: - App Screens
 
 enum AppScreen: String, CaseIterable {
-    case cosmos = "COSMOS"
-    case aurora = "AURORA"
+    case cosmos  = "COSMOS"
+    case aurora  = "AURORA"
+    case crystal = "CRYSTAL"
 
     var icon: String {
         switch self {
-        case .cosmos: "sparkles"
-        case .aurora: "wind"
+        case .cosmos:  "sparkles"
+        case .aurora:  "wind"
+        case .crystal: "diamond"
         }
     }
 
     var accent: Color {
         switch self {
-        case .cosmos: Color(red: 0.70, green: 0.80, blue: 0.92)
-        case .aurora: Color(red: 0.20, green: 0.85, blue: 0.55)
+        case .cosmos:  Color(red: 0.70, green: 0.80, blue: 0.92)
+        case .aurora:  Color(red: 0.20, green: 0.85, blue: 0.55)
+        case .crystal: Color(red: 0.55, green: 0.88, blue: 1.00)
         }
     }
 }
@@ -34,6 +37,8 @@ struct ContentView: View {
                 CosmosView(onPickerTap: { showPicker = true })
             case .aurora:
                 AuroraView(onPickerTap: { showPicker = true })
+            case .crystal:
+                CrystalView(onPickerTap: { showPicker = true })
             }
 
             if showPicker {
