@@ -146,6 +146,25 @@ private struct AnimalSegment {
             return CGPoint(x: x1 + dx*t + nx*sc, y: y1 + dy*t + ny*sc)
         }
     }
+
+    // 輪郭寄り楕円: 外側80〜100%の帯状領域に点を均等配置
+    static func ellipseBorder(cx: Double, cy: Double, rx: Double, ry: Double, weight: Double) -> Self {
+        .init(weight: weight) { rng in
+            let a = rng.next() * .pi * 2
+            let d = sqrt(0.6400 + rng.next() * 0.3600)  // r=0.80..1.0
+            return CGPoint(x: cx + cos(a)*rx*d, y: cy + sin(a)*ry*d)
+        }
+    }
+
+    // 輪郭寄り円
+    static func circleBorder(cx: Double, cy: Double, r: Double, weight: Double) -> Self {
+        .init(weight: weight) { rng in
+            let a = rng.next() * .pi * 2
+            let d = sqrt(0.6400 + rng.next() * 0.3600)
+            return CGPoint(x: cx + cos(a)*r*d, y: cy + sin(a)*r*d)
+        }
+    }
+
 }
 
 // MARK: - AnimalKind
@@ -155,10 +174,19 @@ enum AnimalKind: String, CaseIterable {
     case giraffe  = "GIRAFFE"
     case elephant = "ELEPHANT"
 
+    // Per-animal uniform scale: giraffe/elephant shrunk to match HUMAN's height span
+    private var scale: Double {
+        switch self {
+        case .human:    return 1.00
+        case .giraffe:  return 0.77
+        case .elephant: return 0.85
+        }
+    }
+
     // Rx = width*0.38, Ry = height*0.38 → portrait-optimized scaling
     func buildTargets(count: Int, seed: UInt64, in size: CGSize) -> [CGPoint] {
-        let Rx = Double(size.width)  * 0.38
-        let Ry = Double(size.height) * 0.38
+        let Rx = Double(size.width)  * 0.38 * scale
+        let Ry = Double(size.height) * 0.38 * scale
         let cx = Double(size.width)  / 2
         let cy = Double(size.height) / 2
 
@@ -237,37 +265,49 @@ enum AnimalKind: String, CaseIterable {
         .ellipse(cx:-0.43, cy: -0.84, rx: 0.045, ry: 0.020, weight: 3),
     ]
 
-    // MARK: Elephant (side view, facing right) – shaped after cartoon reference
+    // MARK: Elephant (side view, facing right)
     private static let elephantSegs: [AnimalSegment] = [
-        // Body – large rounded horizontal ellipse
-        .ellipse(cx: -0.10, cy: -0.06, rx: 0.62, ry: 0.30, weight: 108),
-        // Head – large circle, upper right
-        .circle (cx:  0.62, cy:  0.38, r:  0.20,            weight: 42),
-        // Ear – very large oval, prominent; positioned between body and head
-        .ellipse(cx:  0.38, cy:  0.55, rx: 0.22, ry: 0.32,  weight: 55),
-        // Neck – short thick bridge
-        .ellipse(cx:  0.36, cy:  0.18, rx: 0.13, ry: 0.10,  weight: 15),
-        // Trunk upper – hangs from front-bottom of head
-        .line(x1: 0.80, y1:  0.22, x2: 0.86, y2: -0.02, halfW: 0.07,  weight: 22),
-        // Trunk lower – curls slightly back to left
-        .line(x1: 0.86, y1: -0.02, x2: 0.76, y2: -0.26, halfW: 0.055, weight: 14),
-        // Tusk – short arc below head front
-        .line(x1: 0.74, y1:  0.24, x2: 0.91, y2:  0.14, halfW: 0.022, weight:  7),
-        // Front legs
-        .line(x1: 0.22, y1: -0.27, x2: 0.24, y2: -0.56, halfW: 0.058, weight: 26),
-        .line(x1: 0.07, y1: -0.27, x2: 0.09, y2: -0.56, halfW: 0.058, weight: 26),
-        // Back legs
-        .line(x1:-0.28, y1: -0.27, x2:-0.26, y2: -0.56, halfW: 0.058, weight: 26),
-        .line(x1:-0.43, y1: -0.27, x2:-0.41, y2: -0.56, halfW: 0.058, weight: 26),
-        // Tail
-        .line(x1:-0.62, y1:  0.03, x2:-0.70, y2: -0.14, halfW: 0.018, weight:  5),
-        // Hooves
-        .ellipse(cx:  0.24, cy: -0.60, rx: 0.078, ry: 0.026, weight: 4),
-        .ellipse(cx:  0.09, cy: -0.60, rx: 0.078, ry: 0.026, weight: 4),
-        .ellipse(cx: -0.26, cy: -0.60, rx: 0.078, ry: 0.026, weight: 4),
-        .ellipse(cx: -0.41, cy: -0.60, rx: 0.078, ry: 0.026, weight: 4),
-        // Eye
-        .circle(cx: 0.70, cy: 0.44, r: 0.018, weight: 2),
+        // ── 胴体: 横長楕円、内部＋輪郭 ─────────────────────────────────
+        .ellipse      (cx: -0.10, cy: -0.06, rx: 0.62, ry: 0.30, weight: 80),
+        .ellipseBorder(cx: -0.10, cy: -0.06, rx: 0.62, ry: 0.30, weight: 36),
+
+        // ── 頭: cy を 0.38→0.22 に下げて胴体と自然につなぐ ─────────────
+        .circle      (cx:  0.62, cy:  0.22, r:  0.21, weight: 30),
+        .circleBorder(cx:  0.62, cy:  0.22, r:  0.21, weight: 14),
+
+        // ── 耳: ry 0.32→0.40 に拡大、cx 0.38→0.52 で頭に重ねる ─────────
+        .ellipse      (cx:  0.52, cy:  0.54, rx: 0.22, ry: 0.40, weight: 44),
+        .ellipseBorder(cx:  0.52, cy:  0.54, rx: 0.22, ry: 0.40, weight: 22),
+
+        // ── 首: 頭の新位置に合わせ cy を 0.18→0.10 に ─────────────────
+        .ellipse(cx:  0.36, cy:  0.10, rx: 0.13, ry: 0.10, weight: 14),
+
+        // ── 鼻(上): y2 を -0.02→-0.15 に下げて長さを出す ────────────────
+        .line(x1: 0.80, y1:  0.10, x2: 0.86, y2: -0.15, halfW: 0.072, weight: 26),
+        // ── 鼻(下): y2 を -0.26→-0.45 に伸ばし、先端を左にカーブ ──────
+        .line(x1: 0.86, y1: -0.15, x2: 0.76, y2: -0.45, halfW: 0.058, weight: 20),
+
+        // ── 牙: 頭の新位置に合わせて y を下げる ─────────────────────────
+        .line(x1: 0.74, y1:  0.10, x2: 0.91, y2:  0.02, halfW: 0.022, weight:  7),
+
+        // ── 前足: halfW 0.058→0.07、y2 -0.56→-0.62 ──────────────────────
+        .line(x1: 0.22, y1: -0.27, x2: 0.24, y2: -0.62, halfW: 0.070, weight: 28),
+        .line(x1: 0.07, y1: -0.27, x2: 0.09, y2: -0.62, halfW: 0.070, weight: 28),
+        // ── 後足: halfW 0.058→0.07、y2 -0.56→-0.62 ──────────────────────
+        .line(x1:-0.28, y1: -0.27, x2:-0.26, y2: -0.62, halfW: 0.070, weight: 28),
+        .line(x1:-0.43, y1: -0.27, x2:-0.41, y2: -0.62, halfW: 0.070, weight: 28),
+
+        // ── 尻尾: 胴体右後ろ（左端）から短く垂らす ──────────────────────
+        .line(x1:-0.64, y1:  0.05, x2:-0.74, y2: -0.16, halfW: 0.018, weight:  5),
+
+        // ── 蹄: 足の新しい底 cy -0.60→-0.66 に合わせる ─────────────────
+        .ellipse(cx:  0.24, cy: -0.66, rx: 0.082, ry: 0.028, weight: 4),
+        .ellipse(cx:  0.09, cy: -0.66, rx: 0.082, ry: 0.028, weight: 4),
+        .ellipse(cx: -0.26, cy: -0.66, rx: 0.082, ry: 0.028, weight: 4),
+        .ellipse(cx: -0.41, cy: -0.66, rx: 0.082, ry: 0.028, weight: 4),
+
+        // ── 目: 頭の新 cy に合わせて下げる ──────────────────────────────
+        .circle(cx: 0.70, cy: 0.28, r: 0.018, weight: 2),
     ]
 }
 
