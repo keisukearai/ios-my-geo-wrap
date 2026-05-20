@@ -471,7 +471,6 @@ struct AnimalView: View {
 
     // AUTO state
     @State private var nextAnimalAt:   Date   = .distantPast
-    @State private var autoSpeedTarget: Double = 0.5
     @State private var autoColorTarget: Double = 0.3
     @State private var lastAutoTick:   Date?  = nil
 
@@ -505,11 +504,10 @@ struct AnimalView: View {
                 scheduleNextAnimal()
             }
 
-            // AUTO: drift SPEED and COLOR
+            // AUTO: drift COLOR only
             guard isAutoMode else { lastAutoTick = nil; return }
             let dt = min(lastAutoTick.map { now.timeIntervalSince($0) } ?? (1.0/60.0), 0.1)
             lastAutoTick = now
-            speed    += (autoSpeedTarget - speed)    * 0.02 * dt * 60
             colorHue += (autoColorTarget - colorHue) * 0.008 * dt * 60
             colorHue = colorHue.truncatingRemainder(dividingBy: 1.0)
             if colorHue < 0 { colorHue += 1.0 }
@@ -518,7 +516,6 @@ struct AnimalView: View {
 
     private func scheduleNextAnimal() {
         nextAnimalAt    = Date().addingTimeInterval(Double.random(in: 8...13))
-        autoSpeedTarget = Double.random(in: 0.2...0.9)
         autoColorTarget = Double.random(in: 0...1)
     }
 
