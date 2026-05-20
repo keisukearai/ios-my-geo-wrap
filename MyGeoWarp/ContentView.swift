@@ -6,12 +6,14 @@ enum AppScreen: String, CaseIterable {
     case cosmos  = "COSMOS"
     case aurora  = "AURORA"
     case crystal = "CRYSTAL"
+    case animal  = "ANIMAL"
 
     var icon: String {
         switch self {
         case .cosmos:  "sparkles"
         case .aurora:  "wind"
         case .crystal: "diamond"
+        case .animal:  "pawprint.fill"
         }
     }
 
@@ -20,6 +22,7 @@ enum AppScreen: String, CaseIterable {
         case .cosmos:  Color(red: 0.70, green: 0.80, blue: 0.92)
         case .aurora:  Color(red: 0.20, green: 0.85, blue: 0.55)
         case .crystal: Color(red: 0.55, green: 0.88, blue: 1.00)
+        case .animal:  Color(red: 1.00, green: 0.72, blue: 0.28)
         }
     }
 }
@@ -39,6 +42,8 @@ struct ContentView: View {
                 AuroraView(onPickerTap: { showPicker = true })
             case .crystal:
                 CrystalView(onPickerTap: { showPicker = true })
+            case .animal:
+                AnimalView(onPickerTap: { showPicker = true })
             }
 
             if showPicker {
@@ -70,7 +75,8 @@ struct ScreenPickerOverlay: View {
                     .tracking(3)
                     .foregroundColor(.white.opacity(0.40))
 
-                HStack(spacing: 14) {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())],
+                          spacing: 14) {
                     ForEach(AppScreen.allCases, id: \.self) { screen in
                         ScreenCard(screen: screen, isSelected: current == screen)
                             .onTapGesture {
