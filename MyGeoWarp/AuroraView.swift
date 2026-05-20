@@ -107,7 +107,7 @@ struct AuroraCanvas: View {
     private func drawBand(_ gfx: GraphicsContext, _ size: CGSize, band: Band) {
         let baseY = band.baseYFrac * size.height
         let amplitude = band.heightFrac * size.height * (0.4 + spread * 1.2)
-        let rate = (0.04 + speed * 0.22) * band.speedMult
+        let rate = (0.08 + speed * 0.44) * band.speedMult
         let col = auroraColor(frac: band.colorFrac)
 
         let steps = 100
@@ -193,11 +193,10 @@ struct AuroraView: View {
     @State private var color:  Double = 0.0
     @State private var showUI: Bool   = true
 
-    @State private var isAutoMode:     Bool   = false
-    @State private var autoTargetSpeed: Double = 0.30
-    @State private var autoTargetColor: Double = 0.0
-    @State private var autoNextSpeed:   Date   = .distantPast
-    @State private var autoNextColor:   Date   = .distantPast
+    @State private var isAutoMode:      Bool   = false
+    @State private var autoTargetSpread: Double = 0.50
+    @State private var autoNextSpread:   Date   = .distantPast
+    @State private var lastAutoTick:     Date?  = nil
 
     @StateObject private var recorder = WallpaperRecorder()
 
@@ -231,18 +230,23 @@ struct AuroraView: View {
                 }
             }
         }
+        .onAppear {
+            speed  = Double.random(in: 0...1)
+            spread = Double.random(in: 0...1)
+            color  = Double.random(in: 0...1)
+        }
         .onReceive(Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()) { now in
-            guard isAutoMode else { return }
-            if now >= autoNextSpeed {
-                autoTargetSpeed = Double.random(in: 0...1)
-                autoNextSpeed   = now.addingTimeInterval(18)
+            guard isAutoMode else {
+                lastAutoTick = nil
+                return
             }
-            if now >= autoNextColor {
-                autoTargetColor = Double.random(in: 0...1)
-                autoNextColor   = now.addingTimeInterval(24)
+            let dt = min(lastAutoTick.map { now.timeIntervalSince($0) } ?? (1.0/60.0), 0.1)
+            lastAutoTick = now
+            if now >= autoNextSpread {
+                autoTargetSpread = Double.random(in: 0...1)
+                autoNextSpread   = now.addingTimeInterval(8)
             }
-            speed += (autoTargetSpeed - speed) * 0.0012
-            color += (autoTargetColor - color) * 0.0008
+            spread += (autoTargetSpread - spread) * 0.06 * dt
         }
     }
 
@@ -339,10 +343,12 @@ struct AuroraView: View {
             Button {
                 isAutoMode.toggle()
                 if isAutoMode {
-                    autoTargetSpeed = Double.random(in: 0...1)
-                    autoTargetColor = Double.random(in: 0...1)
-                    autoNextSpeed   = .distantPast
-                    autoNextColor   = Date().addingTimeInterval(12)
+                    autoTargetSpread = Double.random(in: 0...1)
+                    spread           = autoTargetSpread
+                    autoNextSpread   = Date().addingTimeInterval(8)
+                    lastAutoTick     = nil
+                } else {
+                    lastAutoTick = nil
                 }
             } label: {
                 Text("AUTO")
