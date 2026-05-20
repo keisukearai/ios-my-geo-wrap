@@ -659,8 +659,9 @@ struct CrystalView: View {
             .shadow(color: isAutoMode ? accent.opacity(0.45) : .clear, radius: 8)
 
             Button {
+                let snapshot = captureCurrentFrame()
                 Task {
-                    await recorder.startCrystal(spin: spin, gravity: gravity)
+                    await recorder.startCrystal(spin: spin, gravity: gravity, stillSnapshot: snapshot)
                 }
             } label: {
                 Text("Save as Live Photo")
@@ -677,6 +678,27 @@ struct CrystalView: View {
             }
         }
         .padding(.top, 4)
+    }
+
+    // MARK: - Snapshot
+
+    private func captureCurrentFrame() -> CGImage? {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.keyWindow,
+              let skView = findView(ofType: SKView.self, in: window),
+              skView.bounds.width > 0 else { return nil }
+        let renderer = UIGraphicsImageRenderer(bounds: skView.bounds)
+        return renderer.image { _ in
+            skView.drawHierarchy(in: skView.bounds, afterScreenUpdates: false)
+        }.cgImage
+    }
+
+    private func findView<T: UIView>(ofType type: T.Type, in view: UIView) -> T? {
+        if let found = view as? T { return found }
+        for sub in view.subviews {
+            if let found = findView(ofType: type, in: sub) { return found }
+        }
+        return nil
     }
 
     // MARK: - Slider helpers

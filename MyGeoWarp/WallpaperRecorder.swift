@@ -123,7 +123,7 @@ final class WallpaperRecorder: ObservableObject {
 
     // MARK: - Start (AURORA)
 
-    func startAurora(speed: Double, spread: Double, colorParam: Double) async {
+    func startAurora(speed: Double, spread: Double, colorParam: Double, startT: Double = 0) async {
         let screenSize = windowSize()
 
         let authStatus = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
@@ -139,7 +139,7 @@ final class WallpaperRecorder: ObservableObject {
 
         do {
             let (videoURL, stillImage, contentID) = try await renderAuroraVideo(
-                speed: speed, spread: spread, colorParam: colorParam, screenSize: screenSize
+                speed: speed, spread: spread, colorParam: colorParam, screenSize: screenSize, startT: startT
             )
             state = .saving
             try await saveLivePhoto(videoURL: videoURL, stillImage: stillImage, contentIdentifier: contentID)
@@ -159,7 +159,7 @@ final class WallpaperRecorder: ObservableObject {
 
     // MARK: - Start (CRYSTAL)
 
-    func startCrystal(spin: Double, gravity: Double) async {
+    func startCrystal(spin: Double, gravity: Double, stillSnapshot: CGImage? = nil) async {
         let screenSize = windowSize()
 
         let authStatus = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
@@ -175,7 +175,7 @@ final class WallpaperRecorder: ObservableObject {
 
         do {
             let (videoURL, stillImage, contentID) = try await renderCrystalVideo(
-                spin: spin, gravity: gravity, screenSize: screenSize
+                spin: spin, gravity: gravity, screenSize: screenSize, stillSnapshot: stillSnapshot
             )
             state = .saving
             try await saveLivePhoto(videoURL: videoURL, stillImage: stillImage, contentIdentifier: contentID)
@@ -196,7 +196,7 @@ final class WallpaperRecorder: ObservableObject {
     // MARK: - Render Video (CRYSTAL)
 
     private func renderCrystalVideo(
-        spin: Double, gravity: Double, screenSize: CGSize
+        spin: Double, gravity: Double, screenSize: CGSize, stillSnapshot: CGImage? = nil
     ) async throws -> (URL, CGImage, String) {
         let totalFrames = Int(duration) * fps
         let renderScale: CGFloat = 2.0
@@ -273,7 +273,7 @@ final class WallpaperRecorder: ObservableObject {
         let renderer = ImageRenderer(content: initialFrame)
         renderer.scale = renderScale
 
-        var firstFrame: CGImage?
+        var firstFrame: CGImage? = stillSnapshot
 
         for i in 0..<totalFrames {
             renderer.content.t = Double(i) / Double(fps)
@@ -281,7 +281,7 @@ final class WallpaperRecorder: ObservableObject {
             guard let cgImage = renderer.cgImage,
                   let buffer  = makePixelBuffer(from: cgImage, size: videoSize) else { continue }
 
-            if i == 0 { firstFrame = cgImage }
+            if i == 0 && firstFrame == nil { firstFrame = cgImage }
 
             let pts = CMTime(value: CMTimeValue(i), timescale: CMTimeScale(fps))
             while !adaptor.assetWriterInput.isReadyForMoreMediaData { await Task.yield() }
@@ -313,7 +313,7 @@ final class WallpaperRecorder: ObservableObject {
     // MARK: - Render Video (AURORA)
 
     private func renderAuroraVideo(
-        speed: Double, spread: Double, colorParam: Double, screenSize: CGSize
+        speed: Double, spread: Double, colorParam: Double, screenSize: CGSize, startT: Double = 0
     ) async throws -> (URL, CGImage, String) {
         let totalFrames = Int(duration) * fps
         let renderScale: CGFloat = 2.0
@@ -389,7 +389,7 @@ final class WallpaperRecorder: ObservableObject {
         ))
 
         let initialFrame = AuroraFrame(
-            t: 0, speed: speed, spread: spread, colorParam: colorParam, size: screenSize
+            t: startT, speed: speed, spread: spread, colorParam: colorParam, size: screenSize
         )
         let renderer = ImageRenderer(content: initialFrame)
         renderer.scale = renderScale
@@ -397,7 +397,7 @@ final class WallpaperRecorder: ObservableObject {
         var firstFrame: CGImage?
 
         for i in 0..<totalFrames {
-            renderer.content.t = Double(i) / Double(fps)
+            renderer.content.t = startT + Double(i) / Double(fps)
 
             guard let cgImage = renderer.cgImage,
                   let buffer  = makePixelBuffer(from: cgImage, size: videoSize) else { continue }

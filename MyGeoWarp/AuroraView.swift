@@ -373,8 +373,9 @@ struct AuroraView: View {
             .shadow(color: isAutoMode ? uiColor.opacity(0.45) : .clear, radius: 8)
 
             Button {
+                let startT = Date.timeIntervalSinceReferenceDate
                 Task {
-                    await recorder.startAurora(speed: speed, spread: spread, colorParam: color)
+                    await recorder.startAurora(speed: speed, spread: spread, colorParam: color, startT: startT)
                 }
             } label: {
                 Text("Save as Live Photo")
