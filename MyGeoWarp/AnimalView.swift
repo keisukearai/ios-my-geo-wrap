@@ -182,7 +182,7 @@ enum AnimalKind: String, CaseIterable {
         case .human:    return 1.00
         case .giraffe:  return 0.77
         case .elephant: return 1.24
-        case .eagle:    return 1.10
+        case .eagle:    return 1.18
         case .whale:    return 1.24
         }
     }
@@ -190,6 +190,7 @@ enum AnimalKind: String, CaseIterable {
     private var yAspect: Double {
         switch self {
         case .elephant: return 0.58
+        case .eagle:    return 0.62
         case .whale:    return 0.56
         default:        return 1.00
         }
@@ -332,41 +333,43 @@ enum AnimalKind: String, CaseIterable {
     ]
 
     // MARK: Eagle (front view, wings fully spread, soaring)
-    // Coordinate reference:
-    //   center=(0,0), x: ±1 maps to screen half-width * scale
-    //   y-up; head at top, tail at bottom, wings left/right
     private static let eagleSegs: [AnimalSegment] = [
-        // Head – small circle, top center
-        .circle(cx: 0.00, cy: 0.60, r: 0.09, weight: 18),
-        // Beak – short hook angling down-forward (hooked raptor bill)
-        .line(x1: 0.05, y1: 0.54, x2: 0.14, y2: 0.46, halfW: 0.022, weight: 5),
-        // Neck – short connector between head and body
-        .ellipse(cx: 0.00, cy: 0.46, rx: 0.07, ry: 0.08, weight: 10),
-        // Body – compact oval at center
-        .ellipse(cx: 0.00, cy: 0.20, rx: 0.18, ry: 0.22, weight: 52),
-        // Left wing inner (shoulder → elbow) – broad
-        .line(x1: -0.16, y1: 0.26, x2: -0.62, y2: 0.12, halfW: 0.095, weight: 60),
-        // Left wing outer (elbow → tip) – tapered
-        .line(x1: -0.62, y1: 0.12, x2: -0.90, y2: -0.06, halfW: 0.060, weight: 38),
-        // Right wing inner
-        .line(x1:  0.16, y1: 0.26, x2:  0.62, y2: 0.12, halfW: 0.095, weight: 60),
-        // Right wing outer
-        .line(x1:  0.62, y1: 0.12, x2:  0.90, y2: -0.06, halfW: 0.060, weight: 38),
-        // Primary feathers (wing slots) – left tip, 3 finger-like lines
-        .line(x1: -0.78, y1: 0.00, x2: -0.83, y2: -0.18, halfW: 0.020, weight: 8),
-        .line(x1: -0.84, y1: -0.03, x2: -0.91, y2: -0.20, halfW: 0.020, weight: 8),
-        .line(x1: -0.90, y1: -0.06, x2: -0.97, y2: -0.23, halfW: 0.020, weight: 8),
-        // Primary feathers – right tip
-        .line(x1:  0.78, y1: 0.00, x2:  0.83, y2: -0.18, halfW: 0.020, weight: 8),
-        .line(x1:  0.84, y1: -0.03, x2:  0.91, y2: -0.20, halfW: 0.020, weight: 8),
-        .line(x1:  0.90, y1: -0.06, x2:  0.97, y2: -0.23, halfW: 0.020, weight: 8),
-        // Tail – broad wedge fan, 3 lines spreading downward
-        .line(x1: -0.12, y1: -0.02, x2: -0.24, y2: -0.40, halfW: 0.060, weight: 16),
-        .line(x1:  0.00, y1: -0.02, x2:  0.00, y2: -0.46, halfW: 0.060, weight: 16),
-        .line(x1:  0.12, y1: -0.02, x2:  0.24, y2: -0.40, halfW: 0.060, weight: 16),
-        // Talons – small ellipses below tail
-        .ellipse(cx: -0.10, cy: -0.56, rx: 0.06, ry: 0.022, weight: 4),
-        .ellipse(cx:  0.10, cy: -0.56, rx: 0.06, ry: 0.022, weight: 4),
+        // ── 頭とくちばし: 上端の縦線を短くし、中央の顔として読ませる ──
+        .circle      (cx: 0.00, cy: 0.40, r: 0.085, weight: 18),
+        .circleBorder(cx: 0.00, cy: 0.40, r: 0.085, weight: 14),
+        .line(x1: -0.020, y1: 0.34, x2: 0.000, y2: 0.25, halfW: 0.020, weight: 5),
+        .line(x1:  0.020, y1: 0.34, x2: 0.000, y2: 0.25, halfW: 0.020, weight: 5),
+
+        // ── 胴体: 中央に短いしずく型の芯を作る ───────────────────────
+        .ellipse      (cx: 0.00, cy: 0.08, rx: 0.16, ry: 0.21, weight: 42),
+        .ellipseBorder(cx: 0.00, cy: 0.08, rx: 0.16, ry: 0.21, weight: 28),
+        .line(x1: -0.08, y1: 0.25, x2: -0.04, y2: -0.08, halfW: 0.030, weight: 12),
+        .line(x1:  0.08, y1: 0.25, x2:  0.04, y2: -0.08, halfW: 0.030, weight: 12),
+
+        // ── 翼: 肩から翼端までの上辺と下辺を明確にして翼幅を広げる ───
+        .line(x1: -0.12, y1: 0.20, x2: -0.48, y2: 0.24, halfW: 0.064, weight: 44),
+        .line(x1: -0.48, y1: 0.24, x2: -1.02, y2: 0.05, halfW: 0.050, weight: 58),
+        .line(x1: -0.14, y1: 0.02, x2: -0.48, y2: -0.06, halfW: 0.060, weight: 38),
+        .line(x1: -0.48, y1: -0.06, x2: -0.98, y2: -0.28, halfW: 0.050, weight: 54),
+        .line(x1:  0.12, y1: 0.20, x2:  0.48, y2: 0.24, halfW: 0.064, weight: 44),
+        .line(x1:  0.48, y1: 0.24, x2:  1.02, y2: 0.05, halfW: 0.050, weight: 58),
+        .line(x1:  0.14, y1: 0.02, x2:  0.48, y2: -0.06, halfW: 0.060, weight: 38),
+        .line(x1:  0.48, y1: -0.06, x2:  0.98, y2: -0.28, halfW: 0.050, weight: 54),
+
+        // ── 風切羽: 翼端に指状の切れ込みを置き、鳥らしさを出す ─────
+        .line(x1: -0.78, y1: 0.00, x2: -0.88, y2: -0.24, halfW: 0.018, weight: 12),
+        .line(x1: -0.88, y1: 0.02, x2: -1.04, y2: -0.18, halfW: 0.018, weight: 12),
+        .line(x1: -0.94, y1: 0.08, x2: -1.08, y2: -0.04, halfW: 0.018, weight: 10),
+        .line(x1:  0.78, y1: 0.00, x2:  0.88, y2: -0.24, halfW: 0.018, weight: 12),
+        .line(x1:  0.88, y1: 0.02, x2:  1.04, y2: -0.18, halfW: 0.018, weight: 12),
+        .line(x1:  0.94, y1: 0.08, x2:  1.08, y2: -0.04, halfW: 0.018, weight: 10),
+
+        // ── 尾羽: 長く垂らさず、胴体直下の短い扇形にする ─────────────
+        .line(x1: -0.08, y1: -0.08, x2: -0.18, y2: -0.30, halfW: 0.046, weight: 14),
+        .line(x1:  0.00, y1: -0.10, x2:  0.00, y2: -0.34, halfW: 0.046, weight: 14),
+        .line(x1:  0.08, y1: -0.08, x2:  0.18, y2: -0.30, halfW: 0.046, weight: 14),
+        .ellipse(cx: -0.08, cy: -0.35, rx: 0.040, ry: 0.018, weight: 2),
+        .ellipse(cx:  0.08, cy: -0.35, rx: 0.040, ry: 0.018, weight: 2),
     ]
 
     // MARK: Whale (side view, facing right)
