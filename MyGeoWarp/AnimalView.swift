@@ -173,6 +173,7 @@ enum AnimalKind: String, CaseIterable {
     case human    = "HUMAN"
     case giraffe  = "GIRAFFE"
     case elephant = "ELEPHANT"
+    case eagle    = "EAGLE"
 
     // Per-animal uniform scale: giraffe/elephant shrunk to match HUMAN's height span
     private var scale: Double {
@@ -180,6 +181,7 @@ enum AnimalKind: String, CaseIterable {
         case .human:    return 1.00
         case .giraffe:  return 0.77
         case .elephant: return 1.10
+        case .eagle:    return 1.10
         }
     }
 
@@ -218,6 +220,7 @@ enum AnimalKind: String, CaseIterable {
         case .human:    return Self.humanSegs
         case .giraffe:  return Self.giraffeSegs
         case .elephant: return Self.elephantSegs
+        case .eagle:    return Self.eagleSegs
         }
     }
 
@@ -308,6 +311,44 @@ enum AnimalKind: String, CaseIterable {
 
         // ── 目: 頭の新 cy に合わせて下げる ──────────────────────────────
         .circle(cx: 0.70, cy: 0.28, r: 0.018, weight: 2),
+    ]
+
+    // MARK: Eagle (front view, wings fully spread, soaring)
+    // Coordinate reference:
+    //   center=(0,0), x: ±1 maps to screen half-width * scale
+    //   y-up; head at top, tail at bottom, wings left/right
+    private static let eagleSegs: [AnimalSegment] = [
+        // Head – small circle, top center  (all y shifted -0.08 to align with HUMAN head)
+        .circle(cx: 0.00, cy: 0.68, r: 0.09, weight: 18),
+        // Beak – short hook angling down-forward (hooked raptor bill)
+        .line(x1: 0.05, y1: 0.62, x2: 0.14, y2: 0.54, halfW: 0.022, weight: 5),
+        // Neck – short connector between head and body
+        .ellipse(cx: 0.00, cy: 0.54, rx: 0.07, ry: 0.08, weight: 10),
+        // Body – compact oval at center
+        .ellipse(cx: 0.00, cy: 0.28, rx: 0.18, ry: 0.22, weight: 52),
+        // Left wing inner (shoulder → elbow) – broad
+        .line(x1: -0.16, y1: 0.34, x2: -0.62, y2: 0.20, halfW: 0.095, weight: 60),
+        // Left wing outer (elbow → tip) – tapered
+        .line(x1: -0.62, y1: 0.20, x2: -0.90, y2: 0.02, halfW: 0.060, weight: 38),
+        // Right wing inner
+        .line(x1:  0.16, y1: 0.34, x2:  0.62, y2: 0.20, halfW: 0.095, weight: 60),
+        // Right wing outer
+        .line(x1:  0.62, y1: 0.20, x2:  0.90, y2: 0.02, halfW: 0.060, weight: 38),
+        // Primary feathers (wing slots) – left tip, 3 finger-like lines
+        .line(x1: -0.78, y1: 0.08, x2: -0.83, y2: -0.10, halfW: 0.020, weight: 8),
+        .line(x1: -0.84, y1: 0.05, x2: -0.91, y2: -0.12, halfW: 0.020, weight: 8),
+        .line(x1: -0.90, y1: 0.02, x2: -0.97, y2: -0.15, halfW: 0.020, weight: 8),
+        // Primary feathers – right tip
+        .line(x1:  0.78, y1: 0.08, x2:  0.83, y2: -0.10, halfW: 0.020, weight: 8),
+        .line(x1:  0.84, y1: 0.05, x2:  0.91, y2: -0.12, halfW: 0.020, weight: 8),
+        .line(x1:  0.90, y1: 0.02, x2:  0.97, y2: -0.15, halfW: 0.020, weight: 8),
+        // Tail – broad wedge fan, 3 lines spreading downward
+        .line(x1: -0.12, y1: 0.06, x2: -0.24, y2: -0.32, halfW: 0.060, weight: 16),
+        .line(x1:  0.00, y1: 0.06, x2:  0.00, y2: -0.38, halfW: 0.060, weight: 16),
+        .line(x1:  0.12, y1: 0.06, x2:  0.24, y2: -0.32, halfW: 0.060, weight: 16),
+        // Talons – small ellipses below tail
+        .ellipse(cx: -0.10, cy: -0.48, rx: 0.06, ry: 0.022, weight: 4),
+        .ellipse(cx:  0.10, cy: -0.48, rx: 0.06, ry: 0.022, weight: 4),
     ]
 }
 
