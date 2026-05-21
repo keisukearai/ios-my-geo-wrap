@@ -429,6 +429,7 @@ final class AnimalScene: SKScene {
     private var lastTime: TimeInterval = 0
 
     override func didMove(to view: SKView) {
+        view.preferredFramesPerSecond = 30
         backgroundColor = UIColor(red: 0.03, green: 0.05, blue: 0.03, alpha: 1)
         spawnStones()
         morphTo(AnimalOrder.shared.sequence[0])
@@ -578,7 +579,7 @@ struct AnimalView: View {
             store.scene?.morphTo(first)
             scheduleNextAnimal()
         }
-        .onReceive(Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()) { now in
+        .onReceive(Timer.publish(every: 1.0/10.0, on: .main, in: .common).autoconnect()) { now in
             // Animal cycling always active regardless of AUTO mode
             if now >= nextAnimalAt, let scene = store.scene {
                 let next = AnimalOrder.shared.next(after: scene.currentAnimal)
@@ -589,7 +590,7 @@ struct AnimalView: View {
 
             // AUTO: drift COLOR only
             guard isAutoMode else { lastAutoTick = nil; return }
-            let dt = min(lastAutoTick.map { now.timeIntervalSince($0) } ?? (1.0/60.0), 0.1)
+            let dt = min(lastAutoTick.map { now.timeIntervalSince($0) } ?? (1.0/10.0), 0.5)
             lastAutoTick = now
             colorHue += (autoColorTarget - colorHue) * 0.008 * dt * 60
             colorHue = colorHue.truncatingRemainder(dividingBy: 1.0)

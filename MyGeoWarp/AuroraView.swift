@@ -206,7 +206,7 @@ struct AuroraView: View {
             if recorder.isActive {
                 recordingOverlay
             } else {
-                TimelineView(.animation) { tl in
+                TimelineView(.animation(minimumInterval: 1.0/30.0)) { tl in
                     let t = tl.date.timeIntervalSinceReferenceDate
                     ZStack {
                         AuroraCanvas(t: t, speed: speed, spread: spread, colorParam: color)
@@ -235,12 +235,12 @@ struct AuroraView: View {
             spread = Double.random(in: 0...1)
             color  = Double.random(in: 0...1)
         }
-        .onReceive(Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()) { now in
+        .onReceive(Timer.publish(every: 1.0/10.0, on: .main, in: .common).autoconnect()) { now in
             guard isAutoMode else {
                 lastAutoTick = nil
                 return
             }
-            let dt = min(lastAutoTick.map { now.timeIntervalSince($0) } ?? (1.0/60.0), 0.1)
+            let dt = min(lastAutoTick.map { now.timeIntervalSince($0) } ?? (1.0/10.0), 0.5)
             lastAutoTick = now
             if now >= autoNextSpread {
                 autoTargetSpread = Double.random(in: 0...1)

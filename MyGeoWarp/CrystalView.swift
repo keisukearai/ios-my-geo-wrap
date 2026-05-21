@@ -172,6 +172,7 @@ class CrystalScene: SKScene, SKPhysicsContactDelegate {
     private weak var containerNode: SKNode?
 
     override func didMove(to view: SKView) {
+        view.preferredFramesPerSecond = 30
         backgroundColor = UIColor(red: 0.04, green: 0.05, blue: 0.14, alpha: 1.0)
         physicsWorld.gravity = CGVector(dx: 0, dy: -5.0)
         physicsWorld.contactDelegate = self
@@ -378,7 +379,7 @@ class CrystalScene: SKScene, SKPhysicsContactDelegate {
 
     private func startMotionUpdates() {
         guard motionManager.isDeviceMotionAvailable else { return }
-        motionManager.deviceMotionUpdateInterval = 1.0 / 60.0
+        motionManager.deviceMotionUpdateInterval = 1.0 / 30.0
         motionManager.startDeviceMotionUpdates()
     }
 
@@ -512,9 +513,9 @@ struct CrystalView: View {
             gravity = Double.random(in: 0.3...0.7)
             chaos   = 0.0
         }
-        .onReceive(Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()) { now in
+        .onReceive(Timer.publish(every: 1.0/10.0, on: .main, in: .common).autoconnect()) { now in
             guard isAutoMode else { lastAutoTick = nil; return }
-            let dt = min(lastAutoTick.map { now.timeIntervalSince($0) } ?? (1.0/60.0), 0.1)
+            let dt = min(lastAutoTick.map { now.timeIntervalSince($0) } ?? (1.0/10.0), 0.5)
             lastAutoTick = now
             if now >= autoNextGravity { autoTargetGravity = Double.random(in: 0...1);    autoNextGravity = now.addingTimeInterval(9) }
             if now >= autoNextChaos   { autoTargetChaos   = Double.random(in: 0...0.55); autoNextChaos   = now.addingTimeInterval(5) }

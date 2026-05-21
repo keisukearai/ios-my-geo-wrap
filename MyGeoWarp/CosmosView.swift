@@ -612,13 +612,13 @@ struct GeoWarpCanvas: View {
     // MARK: - Scanlines & Vignette
 
     private func drawScanlines(_ gfx: GraphicsContext, _ size: CGSize) {
+        var p = Path()
         var y = 0.0
         while y < size.height {
-            var p = Path()
             p.move(to: CGPoint(x: 0, y: y)); p.addLine(to: CGPoint(x: size.width, y: y))
-            gfx.stroke(p, with: .color(Color.black.opacity(0.055)), lineWidth: 1.0)
             y += 4
         }
+        gfx.stroke(p, with: .color(Color.black.opacity(0.055)), lineWidth: 1.0)
     }
 
     private func drawVignette(_ gfx: GraphicsContext, _ size: CGSize) {
@@ -733,7 +733,7 @@ struct CosmosView: View {
             if recorder.isActive {
                 recordingOverlay()
             } else {
-                TimelineView(.animation) { tl in
+                TimelineView(.animation(minimumInterval: 1.0/30.0)) { tl in
                     let t      = tl.date.timeIntervalSinceReferenceDate
                     let canvas = GeoWarpCanvas(t: t, warp: warp, chaos: chaos,
                                               tempo: tempo, colorStyle: colorStyle, pools: pools)
@@ -764,7 +764,7 @@ struct CosmosView: View {
             chaos      = .random(in: 0...1)
             colorStyle = .random(in: 0...1)
         }
-        .onReceive(Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()) { now in
+        .onReceive(Timer.publish(every: 1.0/10.0, on: .main, in: .common).autoconnect()) { now in
             guard isAutoMode else { return }
             let steps: [Double] = [0.0, 0.25, 0.5, 0.75, 1.0]
             if now >= autoNextWarp {
@@ -779,8 +779,8 @@ struct CosmosView: View {
                 autoTargetChaos = steps[(idx + 1) % steps.count]
                 autoNextChaos   = now.addingTimeInterval(30)
             }
-            warp  += (autoTargetWarp  - warp)  * 0.0016
-            chaos += (autoTargetChaos - chaos) * 0.0016
+            warp  += (autoTargetWarp  - warp)  * 0.0096
+            chaos += (autoTargetChaos - chaos) * 0.0096
         }
     }
 
