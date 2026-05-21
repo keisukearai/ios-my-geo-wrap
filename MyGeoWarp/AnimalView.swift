@@ -183,14 +183,22 @@ enum AnimalKind: String, CaseIterable {
         case .giraffe:  return 0.77
         case .elephant: return 1.24
         case .eagle:    return 1.10
-        case .whale:    return 0.82
+        case .whale:    return 1.24
         }
     }
 
     private var yAspect: Double {
         switch self {
         case .elephant: return 0.58
+        case .whale:    return 0.56
         default:        return 1.00
+        }
+    }
+
+    private var offset: CGPoint {
+        switch self {
+        case .whale: return CGPoint(x: 0.08, y: -0.04)
+        default:     return .zero
         }
     }
 
@@ -216,7 +224,8 @@ enum AnimalKind: String, CaseIterable {
                 : max(0, Int((seg.weight / totalW * Double(count)).rounded()))
             for _ in 0..<n {
                 let np = seg.sampler(&rng)
-                pts.append(CGPoint(x: cx + np.x * Rx, y: cy + np.y * Ry))
+                pts.append(CGPoint(x: cx + (np.x + offset.x) * Rx,
+                                   y: cy + (np.y + offset.y) * Ry))
             }
             remaining -= n
         }
@@ -360,46 +369,38 @@ enum AnimalKind: String, CaseIterable {
         .ellipse(cx:  0.10, cy: -0.56, rx: 0.06, ry: 0.022, weight: 4),
     ]
 
-    // MARK: Whale (side view, facing right, with V-shaped water spout)
-    // 胴体を大型化 (rx=0.65, ry=0.30)、潮吹きは細い二股型
+    // MARK: Whale (side view, facing right)
     private static let whaleSegs: [AnimalSegment] = [
-        // ── 胴体メイン（大型横楕円）────────────────────────────────────────
-        .ellipse      (cx:  0.00, cy: -0.08, rx: 0.65, ry: 0.30, weight: 100),
-        .ellipseBorder(cx:  0.00, cy: -0.08, rx: 0.65, ry: 0.30, weight:  38),
+        // ── 胴体: 輪郭を保ちつつ中央にも点を置き、空洞感を減らす ─────
+        .ellipse      (cx: -0.04, cy: -0.04, rx: 0.60, ry: 0.21, weight: 88),
+        .ellipseBorder(cx: -0.04, cy: -0.04, rx: 0.70, ry: 0.27, weight: 118),
+        .ellipse      (cx:  0.20, cy: -0.05, rx: 0.32, ry: 0.13, weight: 28),
+        .line(x1: -0.62, y1:  0.00, x2: -0.34, y2:  0.18, halfW: 0.026, weight: 26),
+        .line(x1: -0.34, y1:  0.18, x2:  0.34, y2:  0.20, halfW: 0.028, weight: 36),
+        .line(x1:  0.34, y1:  0.20, x2:  0.68, y2:  0.10, halfW: 0.024, weight: 28),
+        .line(x1: -0.58, y1: -0.20, x2:  0.54, y2: -0.20, halfW: 0.030, weight: 38),
 
-        // ── 頭部（前方に重ねて丸い先端を形成）──────────────────────────────
-        .ellipse      (cx:  0.58, cy: -0.04, rx: 0.25, ry: 0.23, weight: 52),
-        .ellipseBorder(cx:  0.58, cy: -0.04, rx: 0.25, ry: 0.23, weight: 22),
+        // ── 頭部: 右端を丸くし、目と口で向きを固定する ────────────────
+        .ellipse      (cx:  0.58, cy: -0.03, rx: 0.27, ry: 0.22, weight: 50),
+        .ellipseBorder(cx:  0.58, cy: -0.03, rx: 0.27, ry: 0.22, weight: 52),
+        .line(x1: 0.40, y1: -0.13, x2: 0.80, y2: -0.15, halfW: 0.015, weight: 14),
+        .circle(cx: 0.69, cy: 0.07, r: 0.022, weight: 6),
 
-        // ── 口のライン ────────────────────────────────────────────────────
-        .line(x1: 0.46, y1: -0.16, x2: 0.80, y2: -0.21, halfW: 0.016, weight: 5),
+        // ── 尾びれ: 左端を大きな二葉のフルークとして読ませる ───────────
+        .line(x1: -0.64, y1: -0.05, x2: -0.82, y2: -0.04, halfW: 0.044, weight: 20),
+        .line(x1: -0.82, y1: -0.04, x2: -1.04, y2:  0.23, halfW: 0.058, weight: 36),
+        .line(x1: -0.82, y1: -0.04, x2: -1.04, y2: -0.29, halfW: 0.058, weight: 36),
+        .line(x1: -1.04, y1:  0.23, x2: -0.82, y2:  0.11, halfW: 0.034, weight: 18),
+        .line(x1: -1.04, y1: -0.29, x2: -0.82, y2: -0.17, halfW: 0.034, weight: 18),
+        .circle(cx: -0.82, cy: -0.04, r: 0.030, weight: 4),
 
-        // ── 尾柄（テールストック）──────────────────────────────────────────
-        .line(x1: -0.62, y1: -0.08, x2: -0.80, y2: -0.10, halfW: 0.072, weight: 16),
-
-        // ── 尾びれ（上葉）──────────────────────────────────────────────────
-        .line(x1: -0.80, y1: -0.10, x2: -0.96, y2:  0.18, halfW: 0.038, weight: 14),
-        // ── 尾びれ（下葉）──────────────────────────────────────────────────
-        .line(x1: -0.80, y1: -0.10, x2: -0.94, y2: -0.40, halfW: 0.038, weight: 14),
-
-        // ── 背びれ ────────────────────────────────────────────────────────
-        .line(x1:  0.12, y1:  0.22, x2:  0.06, y2:  0.42, halfW: 0.038, weight: 12),
-
-        // ── 胸びれ ────────────────────────────────────────────────────────
-        .line(x1:  0.28, y1: -0.22, x2:  0.50, y2: -0.52, halfW: 0.054, weight: 12),
-
-        // ── 目 ────────────────────────────────────────────────────────────
-        .circle(cx: 0.70, cy: 0.05, r: 0.018, weight: 2),
-
-        // ── 潮吹き (Water Spout) – 細い二股型・1.5倍の高さ ────────────────
-        // 噴気口（ブローホール）
-        .circle(cx: 0.42, cy: 0.20, r: 0.022, weight: 4),
-        // メイン水柱（細め）ブローホール→分岐点(0.56)
-        .line(x1: 0.42, y1: 0.20, x2: 0.36, y2: 0.56, halfW: 0.025, weight: 28),
-        // 二股・左
-        .line(x1: 0.36, y1: 0.56, x2: 0.15, y2: 0.89, halfW: 0.018, weight: 20),
-        // 二股・右
-        .line(x1: 0.36, y1: 0.56, x2: 0.57, y2: 0.89, halfW: 0.018, weight: 20),
+        // ── 背びれ・胸びれ・潮吹き: 目印として残しつつ点数は控えめ ─────
+        .line(x1: -0.08, y1:  0.19, x2: -0.22, y2:  0.41, halfW: 0.046, weight: 22),
+        .line(x1:  0.18, y1: -0.18, x2:  0.42, y2: -0.45, halfW: 0.062, weight: 26),
+        .circle(cx: 0.30, cy: 0.20, r: 0.016, weight: 2),
+        .line(x1: 0.30, y1: 0.21, x2: 0.29, y2: 0.39, halfW: 0.013, weight: 5),
+        .line(x1: 0.29, y1: 0.39, x2: 0.20, y2: 0.51, halfW: 0.010, weight: 3),
+        .line(x1: 0.29, y1: 0.39, x2: 0.39, y2: 0.51, halfW: 0.010, weight: 3),
     ]
 }
 
