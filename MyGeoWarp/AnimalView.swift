@@ -180,7 +180,7 @@ enum AnimalKind: String, CaseIterable {
     private var scale: Double {
         switch self {
         case .human:    return 1.00
-        case .giraffe:  return 0.77
+        case .giraffe:  return 0.92
         case .elephant: return 1.24
         case .eagle:    return 1.18
         case .whale:    return 1.24
@@ -189,6 +189,7 @@ enum AnimalKind: String, CaseIterable {
 
     private var yAspect: Double {
         switch self {
+        case .giraffe:  return 0.78
         case .elephant: return 0.58
         case .eagle:    return 0.62
         case .whale:    return 0.56
@@ -264,28 +265,36 @@ enum AnimalKind: String, CaseIterable {
 
     // MARK: Giraffe (side view, facing right)
     private static let giraffeSegs: [AnimalSegment] = [
-        // Head – horizontal ellipse, top-right
-        .ellipse(cx: 0.67, cy: 0.69, rx: 0.12, ry: 0.065, weight: 16),
-        // Ossicones pointing up
-        .line(x1: 0.60, y1: 0.75, x2: 0.59, y2: 0.86, halfW: 0.012, weight: 3),
-        .line(x1: 0.72, y1: 0.75, x2: 0.71, y2: 0.86, halfW: 0.012, weight: 3),
-        // Neck – 80% of original length, starting from enlarged body front-top
-        .line(x1: 0.35, y1: 0.02, x2: 0.61, y2: 0.63, halfW: 0.065, weight: 58),
-        // Body – enlarged horizontal ellipse
-        .ellipse(cx: -0.15, cy: -0.20, rx: 0.62, ry: 0.22, weight: 80),
-        // Front legs (right side of body)
-        .line(x1: 0.16, y1: -0.42, x2: 0.18, y2: -0.86, halfW: 0.040, weight: 24),
-        .line(x1: 0.04, y1: -0.42, x2: 0.06, y2: -0.86, halfW: 0.040, weight: 24),
-        // Back legs (left side of body)
-        .line(x1:-0.30, y1: -0.42, x2:-0.29, y2: -0.86, halfW: 0.040, weight: 24),
-        .line(x1:-0.44, y1: -0.42, x2:-0.43, y2: -0.86, halfW: 0.040, weight: 24),
-        // Tail hanging from rear
-        .line(x1:-0.68, y1: -0.17, x2:-0.77, y2: -0.38, halfW: 0.014, weight: 5),
-        // Hooves
-        .ellipse(cx: 0.18, cy: -0.90, rx: 0.045, ry: 0.020, weight: 3),
-        .ellipse(cx: 0.06, cy: -0.90, rx: 0.045, ry: 0.020, weight: 3),
-        .ellipse(cx:-0.29, cy: -0.90, rx: 0.045, ry: 0.020, weight: 3),
-        .ellipse(cx:-0.43, cy: -0.90, rx: 0.045, ry: 0.020, weight: 3),
+        // ── 胴体: 首に負けない横長の塊として読ませる ─────────────────
+        .ellipse      (cx: -0.22, cy: -0.20, rx: 0.58, ry: 0.21, weight: 94),
+        .ellipseBorder(cx: -0.22, cy: -0.20, rx: 0.58, ry: 0.21, weight: 54),
+        .line(x1: -0.68, y1: -0.12, x2: 0.20, y2: -0.12, halfW: 0.032, weight: 26),
+        .line(x1: -0.60, y1: -0.34, x2: 0.18, y2: -0.36, halfW: 0.032, weight: 26),
+
+        // ── 首: 短め・太めにして、縦の棒だけに見えないようにする ─────
+        .line(x1: 0.20, y1: -0.01, x2: 0.48, y2: 0.44, halfW: 0.055, weight: 36),
+        .line(x1: 0.13, y1: -0.02, x2: 0.39, y2: 0.40, halfW: 0.032, weight: 14),
+
+        // ── 頭: 横向きの小さな頭と鼻先、短い角を明確にする ───────────
+        .ellipse      (cx: 0.66, cy: 0.50, rx: 0.17, ry: 0.075, weight: 24),
+        .ellipseBorder(cx: 0.66, cy: 0.50, rx: 0.17, ry: 0.075, weight: 14),
+        .ellipse(cx: 0.82, cy: 0.48, rx: 0.060, ry: 0.034, weight: 8),
+        .line(x1: 0.59, y1: 0.56, x2: 0.57, y2: 0.67, halfW: 0.013, weight: 4),
+        .line(x1: 0.70, y1: 0.56, x2: 0.71, y2: 0.67, halfW: 0.013, weight: 4),
+        .circle(cx: 0.72, cy: 0.52, r: 0.014, weight: 2),
+
+        // ── 脚: 4本を体の下に分散し、長すぎる印象を抑える ────────────
+        .line(x1: 0.15, y1: -0.35, x2: 0.17, y2: -0.76, halfW: 0.046, weight: 24),
+        .line(x1: 0.00, y1: -0.36, x2: 0.03, y2: -0.76, halfW: 0.041, weight: 22),
+        .line(x1:-0.35, y1: -0.35, x2:-0.33, y2: -0.76, halfW: 0.046, weight: 24),
+        .line(x1:-0.52, y1: -0.34, x2:-0.50, y2: -0.74, halfW: 0.041, weight: 22),
+
+        // ── 尻尾と蹄 ───────────────────────────────────────────────────
+        .line(x1:-0.76, y1: -0.14, x2:-0.91, y2: -0.28, halfW: 0.017, weight: 7),
+        .ellipse(cx: 0.17, cy: -0.79, rx: 0.056, ry: 0.020, weight: 4),
+        .ellipse(cx: 0.03, cy: -0.79, rx: 0.056, ry: 0.020, weight: 4),
+        .ellipse(cx:-0.33, cy: -0.79, rx: 0.056, ry: 0.020, weight: 4),
+        .ellipse(cx:-0.50, cy: -0.77, rx: 0.056, ry: 0.020, weight: 4),
     ]
 
     // MARK: Elephant (side view, facing right)
