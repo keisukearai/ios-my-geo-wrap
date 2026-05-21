@@ -7,25 +7,28 @@ enum AppScreen: String, CaseIterable {
     case aurora  = "AURORA"
     case crystal = "CRYSTAL"
     case animal  = "ANIMAL"
-    case flower  = "FLOWER"
+    case flower    = "FLOWER"
+    case hourglass = "HOURGLASS"
 
     var icon: String {
         switch self {
-        case .cosmos:  "sparkles"
-        case .aurora:  "wind"
-        case .crystal: "diamond"
-        case .animal:  "pawprint.fill"
-        case .flower:  "camera.macro"
+        case .cosmos:     "sparkles"
+        case .aurora:     "wind"
+        case .crystal:    "diamond"
+        case .animal:     "pawprint.fill"
+        case .flower:     "camera.macro"
+        case .hourglass:  "hourglass"
         }
     }
 
     var accent: Color {
         switch self {
-        case .cosmos:  Color(red: 0.70, green: 0.80, blue: 0.92)
-        case .aurora:  Color(red: 0.20, green: 0.85, blue: 0.55)
-        case .crystal: Color(red: 0.55, green: 0.88, blue: 1.00)
-        case .animal:  Color(red: 1.00, green: 0.72, blue: 0.28)
-        case .flower:  Color(red: 1.00, green: 0.60, blue: 0.75)
+        case .cosmos:     Color(red: 0.70, green: 0.80, blue: 0.92)
+        case .aurora:     Color(red: 0.20, green: 0.85, blue: 0.55)
+        case .crystal:    Color(red: 0.55, green: 0.88, blue: 1.00)
+        case .animal:     Color(red: 1.00, green: 0.72, blue: 0.28)
+        case .flower:     Color(red: 1.00, green: 0.60, blue: 0.75)
+        case .hourglass:  Color(red: 0.95, green: 0.78, blue: 0.45)
         }
     }
 }
@@ -49,6 +52,8 @@ struct ContentView: View {
                 AnimalView(onPickerTap: { showPicker = true })
             case .flower:
                 FlowerView(onPickerTap: { showPicker = true })
+            case .hourglass:
+                HourglassView(onPickerTap: { showPicker = true })
             }
 
             if showPicker {
