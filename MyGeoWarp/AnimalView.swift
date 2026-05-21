@@ -242,27 +242,27 @@ enum AnimalKind: String, CaseIterable {
     // MARK: Giraffe (side view, facing right)
     private static let giraffeSegs: [AnimalSegment] = [
         // Head – horizontal ellipse, top-right
-        .ellipse(cx: 0.68, cy: 0.78, rx: 0.12, ry: 0.065, weight: 16),
+        .ellipse(cx: 0.67, cy: 0.69, rx: 0.12, ry: 0.065, weight: 16),
         // Ossicones pointing up
-        .line(x1: 0.61, y1: 0.84, x2: 0.60, y2: 0.95, halfW: 0.012, weight: 3),
-        .line(x1: 0.73, y1: 0.84, x2: 0.72, y2: 0.95, halfW: 0.012, weight: 3),
-        // Neck – angled line from body front up to head (longer neck, body moved down)
-        .line(x1: 0.30, y1: -0.04, x2: 0.62, y2: 0.72, halfW: 0.065, weight: 58),
-        // Body – wide horizontal ellipse (lowered to shorten legs)
-        .ellipse(cx: -0.15, cy: -0.20, rx: 0.55, ry: 0.16, weight: 72),
+        .line(x1: 0.60, y1: 0.75, x2: 0.59, y2: 0.86, halfW: 0.012, weight: 3),
+        .line(x1: 0.72, y1: 0.75, x2: 0.71, y2: 0.86, halfW: 0.012, weight: 3),
+        // Neck – 80% of original length, starting from enlarged body front-top
+        .line(x1: 0.35, y1: 0.02, x2: 0.61, y2: 0.63, halfW: 0.065, weight: 58),
+        // Body – enlarged horizontal ellipse
+        .ellipse(cx: -0.15, cy: -0.20, rx: 0.62, ry: 0.22, weight: 80),
         // Front legs (right side of body)
-        .line(x1: 0.16, y1: -0.36, x2: 0.18, y2: -0.80, halfW: 0.040, weight: 24),
-        .line(x1: 0.04, y1: -0.36, x2: 0.06, y2: -0.80, halfW: 0.040, weight: 24),
+        .line(x1: 0.16, y1: -0.42, x2: 0.18, y2: -0.86, halfW: 0.040, weight: 24),
+        .line(x1: 0.04, y1: -0.42, x2: 0.06, y2: -0.86, halfW: 0.040, weight: 24),
         // Back legs (left side of body)
-        .line(x1:-0.30, y1: -0.36, x2:-0.29, y2: -0.80, halfW: 0.040, weight: 24),
-        .line(x1:-0.44, y1: -0.36, x2:-0.43, y2: -0.80, halfW: 0.040, weight: 24),
+        .line(x1:-0.30, y1: -0.42, x2:-0.29, y2: -0.86, halfW: 0.040, weight: 24),
+        .line(x1:-0.44, y1: -0.42, x2:-0.43, y2: -0.86, halfW: 0.040, weight: 24),
         // Tail hanging from rear
-        .line(x1:-0.65, y1: -0.17, x2:-0.74, y2: -0.38, halfW: 0.014, weight: 5),
+        .line(x1:-0.68, y1: -0.17, x2:-0.77, y2: -0.38, halfW: 0.014, weight: 5),
         // Hooves
-        .ellipse(cx: 0.18, cy: -0.84, rx: 0.045, ry: 0.020, weight: 3),
-        .ellipse(cx: 0.06, cy: -0.84, rx: 0.045, ry: 0.020, weight: 3),
-        .ellipse(cx:-0.29, cy: -0.84, rx: 0.045, ry: 0.020, weight: 3),
-        .ellipse(cx:-0.43, cy: -0.84, rx: 0.045, ry: 0.020, weight: 3),
+        .ellipse(cx: 0.18, cy: -0.90, rx: 0.045, ry: 0.020, weight: 3),
+        .ellipse(cx: 0.06, cy: -0.90, rx: 0.045, ry: 0.020, weight: 3),
+        .ellipse(cx:-0.29, cy: -0.90, rx: 0.045, ry: 0.020, weight: 3),
+        .ellipse(cx:-0.43, cy: -0.90, rx: 0.045, ry: 0.020, weight: 3),
     ]
 
     // MARK: Elephant (side view, facing right)
