@@ -180,7 +180,7 @@ enum AnimalKind: String, CaseIterable {
         switch self {
         case .human:    return 1.00
         case .giraffe:  return 0.77
-        case .elephant: return 1.10
+        case .elephant: return 1.05
         case .eagle:    return 1.10
         }
     }
@@ -203,7 +203,7 @@ enum AnimalKind: String, CaseIterable {
 
         for (idx, seg) in segs.enumerated() {
             let n = idx == segs.count - 1
-                ? remaining
+                ? max(0, remaining)
                 : max(0, Int((seg.weight / totalW * Double(count)).rounded()))
             for _ in 0..<n {
                 let np = seg.sampler(&rng)
@@ -270,47 +270,49 @@ enum AnimalKind: String, CaseIterable {
 
     // MARK: Elephant (side view, facing right)
     private static let elephantSegs: [AnimalSegment] = [
-        // ── 胴体: 横長楕円、内部＋輪郭 ─────────────────────────────────
-        .ellipse      (cx: -0.10, cy: -0.06, rx: 0.68, ry: 0.22, weight: 80),
-        .ellipseBorder(cx: -0.10, cy: -0.06, rx: 0.68, ry: 0.22, weight: 36),
+        // ── 胴体: コンパクト横楕円 ──────────────────────────────────────
+        .ellipse      (cx:  0.06, cy:  0.08, rx: 0.46, ry: 0.26, weight: 80),
+        .ellipseBorder(cx:  0.06, cy:  0.08, rx: 0.46, ry: 0.26, weight: 36),
 
-        // ── 頭: cy を 0.38→0.22 に下げて胴体と自然につなぐ ─────────────
-        .circle      (cx:  0.62, cy:  0.22, r:  0.21, weight: 30),
-        .circleBorder(cx:  0.62, cy:  0.22, r:  0.21, weight: 14),
+        // ── 頭: 大きな円 ─────────────────────────────────────────────────
+        .circle      (cx:  0.58, cy:  0.28, r:  0.20, weight: 32),
+        .circleBorder(cx:  0.58, cy:  0.28, r:  0.20, weight: 15),
 
-        // ── 耳: 鼻の半分程度のサイズ ─────────────────────────────────────
-        .ellipse      (cx:  0.52, cy:  0.38, rx: 0.11, ry: 0.20, weight: 44),
-        .ellipseBorder(cx:  0.52, cy:  0.38, rx: 0.11, ry: 0.20, weight: 22),
+        // ── 耳: 大型扇形、頭後上部 ───────────────────────────────────────
+        .ellipse      (cx:  0.44, cy:  0.42, rx: 0.15, ry: 0.24, weight: 50),
+        .ellipseBorder(cx:  0.44, cy:  0.42, rx: 0.15, ry: 0.24, weight: 25),
 
-        // ── 首: 頭の新位置に合わせ cy を 0.18→0.10 に ─────────────────
-        .ellipse(cx:  0.36, cy:  0.10, rx: 0.13, ry: 0.10, weight: 14),
+        // ── 首 ────────────────────────────────────────────────────────────
+        .ellipse(cx:  0.42, cy:  0.20, rx: 0.14, ry: 0.12, weight: 14),
 
-        // ── 鼻(上): y2 を -0.02→-0.15 に下げて長さを出す ────────────────
-        .line(x1: 0.80, y1:  0.10, x2: 0.86, y2: -0.15, halfW: 0.072, weight: 26),
-        // ── 鼻(下): y2 を -0.26→-0.45 に伸ばし、先端を左にカーブ ──────
-        .line(x1: 0.86, y1: -0.15, x2: 0.76, y2: -0.45, halfW: 0.058, weight: 20),
+        // ── 鼻(上段): 太く、頭前面から斜め前下へ ────────────────────────
+        .line(x1: 0.76, y1:  0.14, x2: 0.88, y2: -0.10, halfW: 0.095, weight: 40),
+        // ── 鼻(中段): さらに下へカーブ ──────────────────────────────────
+        .line(x1: 0.88, y1: -0.10, x2: 0.82, y2: -0.38, halfW: 0.075, weight: 30),
+        // ── 鼻(先端): 内向きにカール ─────────────────────────────────────
+        .line(x1: 0.82, y1: -0.38, x2: 0.66, y2: -0.55, halfW: 0.055, weight: 20),
 
-        // ── 牙: 頭の新位置に合わせて y を下げる ─────────────────────────
-        .line(x1: 0.74, y1:  0.10, x2: 0.91, y2:  0.02, halfW: 0.022, weight:  7),
+        // ── 牙 ────────────────────────────────────────────────────────────
+        .line(x1: 0.74, y1:  0.13, x2: 0.91, y2:  0.04, halfW: 0.022, weight:  7),
 
         // ── 前足 ──────────────────────────────────────────────────────────
-        .line(x1: 0.22, y1: -0.27, x2: 0.24, y2: -0.54, halfW: 0.070, weight: 28),
-        .line(x1: 0.07, y1: -0.27, x2: 0.09, y2: -0.54, halfW: 0.070, weight: 28),
+        .line(x1: 0.36, y1: -0.18, x2: 0.38, y2: -0.60, halfW: 0.078, weight: 30),
+        .line(x1: 0.20, y1: -0.18, x2: 0.22, y2: -0.60, halfW: 0.078, weight: 30),
         // ── 後足 ──────────────────────────────────────────────────────────
-        .line(x1:-0.28, y1: -0.27, x2:-0.26, y2: -0.54, halfW: 0.070, weight: 28),
-        .line(x1:-0.43, y1: -0.27, x2:-0.41, y2: -0.54, halfW: 0.070, weight: 28),
+        .line(x1:-0.14, y1: -0.18, x2:-0.12, y2: -0.60, halfW: 0.078, weight: 30),
+        .line(x1:-0.30, y1: -0.18, x2:-0.28, y2: -0.60, halfW: 0.078, weight: 30),
 
-        // ── 尻尾: 胴体右後ろ（左端）から短く垂らす ──────────────────────
-        .line(x1:-0.64, y1:  0.05, x2:-0.74, y2: -0.16, halfW: 0.018, weight:  5),
+        // ── 尻尾 ──────────────────────────────────────────────────────────
+        .line(x1:-0.50, y1:  0.12, x2:-0.60, y2: -0.06, halfW: 0.018, weight:  5),
 
         // ── 蹄 ────────────────────────────────────────────────────────────
-        .ellipse(cx:  0.24, cy: -0.58, rx: 0.082, ry: 0.028, weight: 4),
-        .ellipse(cx:  0.09, cy: -0.58, rx: 0.082, ry: 0.028, weight: 4),
-        .ellipse(cx: -0.26, cy: -0.58, rx: 0.082, ry: 0.028, weight: 4),
-        .ellipse(cx: -0.41, cy: -0.58, rx: 0.082, ry: 0.028, weight: 4),
+        .ellipse(cx:  0.38, cy: -0.64, rx: 0.088, ry: 0.030, weight: 4),
+        .ellipse(cx:  0.22, cy: -0.64, rx: 0.088, ry: 0.030, weight: 4),
+        .ellipse(cx: -0.12, cy: -0.64, rx: 0.088, ry: 0.030, weight: 4),
+        .ellipse(cx: -0.28, cy: -0.64, rx: 0.088, ry: 0.030, weight: 4),
 
-        // ── 目: 頭の新 cy に合わせて下げる ──────────────────────────────
-        .circle(cx: 0.70, cy: 0.28, r: 0.018, weight: 2),
+        // ── 目 ────────────────────────────────────────────────────────────
+        .circle(cx: 0.66, cy: 0.33, r: 0.018, weight: 2),
     ]
 
     // MARK: Eagle (front view, wings fully spread, soaring)
