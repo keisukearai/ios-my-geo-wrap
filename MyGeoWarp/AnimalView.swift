@@ -174,6 +174,7 @@ enum AnimalKind: String, CaseIterable {
     case giraffe  = "GIRAFFE"
     case elephant = "ELEPHANT"
     case eagle    = "EAGLE"
+    case whale    = "WHALE"
 
     // Per-animal uniform scale: giraffe/elephant shrunk to match HUMAN's height span
     private var scale: Double {
@@ -182,6 +183,7 @@ enum AnimalKind: String, CaseIterable {
         case .giraffe:  return 0.77
         case .elephant: return 1.05
         case .eagle:    return 1.10
+        case .whale:    return 0.82
         }
     }
 
@@ -221,25 +223,26 @@ enum AnimalKind: String, CaseIterable {
         case .giraffe:  return Self.giraffeSegs
         case .elephant: return Self.elephantSegs
         case .eagle:    return Self.eagleSegs
+        case .whale:    return Self.whaleSegs
         }
     }
 
     // MARK: Human – normalized [-1..1], SpriteKit y-up
     private static let humanSegs: [AnimalSegment] = [
-        .circle (cx:  0,     cy:  0.68, r:  0.12,              weight: 22),
-        .ellipse(cx:  0,     cy:  0.54, rx: 0.035, ry: 0.06,   weight:  8),
-        .ellipse(cx:  0,     cy:  0.33, rx: 0.14,  ry: 0.18,   weight: 48),
-        .line(x1:-0.10, y1: 0.46, x2:-0.26, y2: 0.22, halfW:0.04, weight:20),
-        .line(x1: 0.10, y1: 0.46, x2: 0.26, y2: 0.22, halfW:0.04, weight:20),
-        .line(x1:-0.26, y1: 0.22, x2:-0.30, y2: 0.06, halfW:0.03, weight:12),
-        .line(x1: 0.26, y1: 0.22, x2: 0.30, y2: 0.06, halfW:0.03, weight:12),
-        .line(x1:-0.05, y1: 0.15, x2:-0.13, y2:-0.15, halfW:0.05, weight:22),
-        .line(x1: 0.05, y1: 0.15, x2: 0.13, y2:-0.15, halfW:0.05, weight:22),
-        .line(x1:-0.13, y1:-0.15, x2:-0.16, y2:-0.52, halfW:0.04, weight:18),
-        .line(x1: 0.13, y1:-0.15, x2: 0.16, y2:-0.52, halfW:0.04, weight:18),
-        .ellipse(cx:-0.20, cy:-0.56, rx:0.07, ry:0.03, weight: 6),
-        .ellipse(cx: 0.20, cy:-0.56, rx:0.07, ry:0.03, weight: 6),
-        .ellipse(cx:  0,   cy:  0.15, rx:0.10, ry:0.05, weight: 6),
+        .circle (cx:  0,     cy:  0.60, r:  0.12,              weight: 22),
+        .ellipse(cx:  0,     cy:  0.46, rx: 0.035, ry: 0.06,   weight:  8),
+        .ellipse(cx:  0,     cy:  0.25, rx: 0.14,  ry: 0.18,   weight: 48),
+        .line(x1:-0.10, y1: 0.38, x2:-0.26, y2: 0.14, halfW:0.04, weight:20),
+        .line(x1: 0.10, y1: 0.38, x2: 0.26, y2: 0.14, halfW:0.04, weight:20),
+        .line(x1:-0.26, y1: 0.14, x2:-0.30, y2:-0.02, halfW:0.03, weight:12),
+        .line(x1: 0.26, y1: 0.14, x2: 0.30, y2:-0.02, halfW:0.03, weight:12),
+        .line(x1:-0.05, y1: 0.07, x2:-0.13, y2:-0.23, halfW:0.05, weight:22),
+        .line(x1: 0.05, y1: 0.07, x2: 0.13, y2:-0.23, halfW:0.05, weight:22),
+        .line(x1:-0.13, y1:-0.23, x2:-0.16, y2:-0.60, halfW:0.04, weight:18),
+        .line(x1: 0.13, y1:-0.23, x2: 0.16, y2:-0.60, halfW:0.04, weight:18),
+        .ellipse(cx:-0.20, cy:-0.64, rx:0.07, ry:0.03, weight: 6),
+        .ellipse(cx: 0.20, cy:-0.64, rx:0.07, ry:0.03, weight: 6),
+        .ellipse(cx:  0,   cy:  0.07, rx:0.10, ry:0.05, weight: 6),
     ]
 
     // MARK: Giraffe (side view, facing right)
@@ -296,20 +299,20 @@ enum AnimalKind: String, CaseIterable {
         .line(x1: 0.74, y1:  0.13, x2: 0.91, y2:  0.04, halfW: 0.022, weight:  7),
 
         // ── 前足 ──────────────────────────────────────────────────────────
-        .line(x1: 0.36, y1: -0.18, x2: 0.38, y2: -0.60, halfW: 0.078, weight: 30),
-        .line(x1: 0.20, y1: -0.18, x2: 0.22, y2: -0.60, halfW: 0.078, weight: 30),
+        .line(x1: 0.36, y1: -0.18, x2: 0.38, y2: -0.43, halfW: 0.078, weight: 30),
+        .line(x1: 0.20, y1: -0.18, x2: 0.22, y2: -0.43, halfW: 0.078, weight: 30),
         // ── 後足 ──────────────────────────────────────────────────────────
-        .line(x1:-0.14, y1: -0.18, x2:-0.12, y2: -0.60, halfW: 0.078, weight: 30),
-        .line(x1:-0.30, y1: -0.18, x2:-0.28, y2: -0.60, halfW: 0.078, weight: 30),
+        .line(x1:-0.14, y1: -0.18, x2:-0.12, y2: -0.43, halfW: 0.078, weight: 30),
+        .line(x1:-0.30, y1: -0.18, x2:-0.28, y2: -0.43, halfW: 0.078, weight: 30),
 
         // ── 尻尾 ──────────────────────────────────────────────────────────
         .line(x1:-0.50, y1:  0.12, x2:-0.60, y2: -0.06, halfW: 0.018, weight:  5),
 
         // ── 蹄 ────────────────────────────────────────────────────────────
-        .ellipse(cx:  0.38, cy: -0.64, rx: 0.088, ry: 0.030, weight: 4),
-        .ellipse(cx:  0.22, cy: -0.64, rx: 0.088, ry: 0.030, weight: 4),
-        .ellipse(cx: -0.12, cy: -0.64, rx: 0.088, ry: 0.030, weight: 4),
-        .ellipse(cx: -0.28, cy: -0.64, rx: 0.088, ry: 0.030, weight: 4),
+        .ellipse(cx:  0.38, cy: -0.47, rx: 0.088, ry: 0.030, weight: 4),
+        .ellipse(cx:  0.22, cy: -0.47, rx: 0.088, ry: 0.030, weight: 4),
+        .ellipse(cx: -0.12, cy: -0.47, rx: 0.088, ry: 0.030, weight: 4),
+        .ellipse(cx: -0.28, cy: -0.47, rx: 0.088, ry: 0.030, weight: 4),
 
         // ── 目 ────────────────────────────────────────────────────────────
         .circle(cx: 0.66, cy: 0.33, r: 0.018, weight: 2),
@@ -320,37 +323,79 @@ enum AnimalKind: String, CaseIterable {
     //   center=(0,0), x: ±1 maps to screen half-width * scale
     //   y-up; head at top, tail at bottom, wings left/right
     private static let eagleSegs: [AnimalSegment] = [
-        // Head – small circle, top center  (all y shifted -0.08 to align with HUMAN head)
-        .circle(cx: 0.00, cy: 0.68, r: 0.09, weight: 18),
+        // Head – small circle, top center
+        .circle(cx: 0.00, cy: 0.60, r: 0.09, weight: 18),
         // Beak – short hook angling down-forward (hooked raptor bill)
-        .line(x1: 0.05, y1: 0.62, x2: 0.14, y2: 0.54, halfW: 0.022, weight: 5),
+        .line(x1: 0.05, y1: 0.54, x2: 0.14, y2: 0.46, halfW: 0.022, weight: 5),
         // Neck – short connector between head and body
-        .ellipse(cx: 0.00, cy: 0.54, rx: 0.07, ry: 0.08, weight: 10),
+        .ellipse(cx: 0.00, cy: 0.46, rx: 0.07, ry: 0.08, weight: 10),
         // Body – compact oval at center
-        .ellipse(cx: 0.00, cy: 0.28, rx: 0.18, ry: 0.22, weight: 52),
+        .ellipse(cx: 0.00, cy: 0.20, rx: 0.18, ry: 0.22, weight: 52),
         // Left wing inner (shoulder → elbow) – broad
-        .line(x1: -0.16, y1: 0.34, x2: -0.62, y2: 0.20, halfW: 0.095, weight: 60),
+        .line(x1: -0.16, y1: 0.26, x2: -0.62, y2: 0.12, halfW: 0.095, weight: 60),
         // Left wing outer (elbow → tip) – tapered
-        .line(x1: -0.62, y1: 0.20, x2: -0.90, y2: 0.02, halfW: 0.060, weight: 38),
+        .line(x1: -0.62, y1: 0.12, x2: -0.90, y2: -0.06, halfW: 0.060, weight: 38),
         // Right wing inner
-        .line(x1:  0.16, y1: 0.34, x2:  0.62, y2: 0.20, halfW: 0.095, weight: 60),
+        .line(x1:  0.16, y1: 0.26, x2:  0.62, y2: 0.12, halfW: 0.095, weight: 60),
         // Right wing outer
-        .line(x1:  0.62, y1: 0.20, x2:  0.90, y2: 0.02, halfW: 0.060, weight: 38),
+        .line(x1:  0.62, y1: 0.12, x2:  0.90, y2: -0.06, halfW: 0.060, weight: 38),
         // Primary feathers (wing slots) – left tip, 3 finger-like lines
-        .line(x1: -0.78, y1: 0.08, x2: -0.83, y2: -0.10, halfW: 0.020, weight: 8),
-        .line(x1: -0.84, y1: 0.05, x2: -0.91, y2: -0.12, halfW: 0.020, weight: 8),
-        .line(x1: -0.90, y1: 0.02, x2: -0.97, y2: -0.15, halfW: 0.020, weight: 8),
+        .line(x1: -0.78, y1: 0.00, x2: -0.83, y2: -0.18, halfW: 0.020, weight: 8),
+        .line(x1: -0.84, y1: -0.03, x2: -0.91, y2: -0.20, halfW: 0.020, weight: 8),
+        .line(x1: -0.90, y1: -0.06, x2: -0.97, y2: -0.23, halfW: 0.020, weight: 8),
         // Primary feathers – right tip
-        .line(x1:  0.78, y1: 0.08, x2:  0.83, y2: -0.10, halfW: 0.020, weight: 8),
-        .line(x1:  0.84, y1: 0.05, x2:  0.91, y2: -0.12, halfW: 0.020, weight: 8),
-        .line(x1:  0.90, y1: 0.02, x2:  0.97, y2: -0.15, halfW: 0.020, weight: 8),
+        .line(x1:  0.78, y1: 0.00, x2:  0.83, y2: -0.18, halfW: 0.020, weight: 8),
+        .line(x1:  0.84, y1: -0.03, x2:  0.91, y2: -0.20, halfW: 0.020, weight: 8),
+        .line(x1:  0.90, y1: -0.06, x2:  0.97, y2: -0.23, halfW: 0.020, weight: 8),
         // Tail – broad wedge fan, 3 lines spreading downward
-        .line(x1: -0.12, y1: 0.06, x2: -0.24, y2: -0.32, halfW: 0.060, weight: 16),
-        .line(x1:  0.00, y1: 0.06, x2:  0.00, y2: -0.38, halfW: 0.060, weight: 16),
-        .line(x1:  0.12, y1: 0.06, x2:  0.24, y2: -0.32, halfW: 0.060, weight: 16),
+        .line(x1: -0.12, y1: -0.02, x2: -0.24, y2: -0.40, halfW: 0.060, weight: 16),
+        .line(x1:  0.00, y1: -0.02, x2:  0.00, y2: -0.46, halfW: 0.060, weight: 16),
+        .line(x1:  0.12, y1: -0.02, x2:  0.24, y2: -0.40, halfW: 0.060, weight: 16),
         // Talons – small ellipses below tail
-        .ellipse(cx: -0.10, cy: -0.48, rx: 0.06, ry: 0.022, weight: 4),
-        .ellipse(cx:  0.10, cy: -0.48, rx: 0.06, ry: 0.022, weight: 4),
+        .ellipse(cx: -0.10, cy: -0.56, rx: 0.06, ry: 0.022, weight: 4),
+        .ellipse(cx:  0.10, cy: -0.56, rx: 0.06, ry: 0.022, weight: 4),
+    ]
+
+    // MARK: Whale (side view, facing right, with V-shaped water spout)
+    // 胴体を大型化 (rx=0.65, ry=0.30)、潮吹きは細い二股型
+    private static let whaleSegs: [AnimalSegment] = [
+        // ── 胴体メイン（大型横楕円）────────────────────────────────────────
+        .ellipse      (cx:  0.00, cy: -0.08, rx: 0.65, ry: 0.30, weight: 100),
+        .ellipseBorder(cx:  0.00, cy: -0.08, rx: 0.65, ry: 0.30, weight:  38),
+
+        // ── 頭部（前方に重ねて丸い先端を形成）──────────────────────────────
+        .ellipse      (cx:  0.58, cy: -0.04, rx: 0.25, ry: 0.23, weight: 52),
+        .ellipseBorder(cx:  0.58, cy: -0.04, rx: 0.25, ry: 0.23, weight: 22),
+
+        // ── 口のライン ────────────────────────────────────────────────────
+        .line(x1: 0.46, y1: -0.16, x2: 0.80, y2: -0.21, halfW: 0.016, weight: 5),
+
+        // ── 尾柄（テールストック）──────────────────────────────────────────
+        .line(x1: -0.62, y1: -0.08, x2: -0.80, y2: -0.10, halfW: 0.072, weight: 16),
+
+        // ── 尾びれ（上葉）──────────────────────────────────────────────────
+        .line(x1: -0.80, y1: -0.10, x2: -0.96, y2:  0.18, halfW: 0.038, weight: 14),
+        // ── 尾びれ（下葉）──────────────────────────────────────────────────
+        .line(x1: -0.80, y1: -0.10, x2: -0.94, y2: -0.40, halfW: 0.038, weight: 14),
+
+        // ── 背びれ ────────────────────────────────────────────────────────
+        .line(x1:  0.12, y1:  0.22, x2:  0.06, y2:  0.42, halfW: 0.038, weight: 12),
+
+        // ── 胸びれ ────────────────────────────────────────────────────────
+        .line(x1:  0.28, y1: -0.22, x2:  0.50, y2: -0.52, halfW: 0.054, weight: 12),
+
+        // ── 目 ────────────────────────────────────────────────────────────
+        .circle(cx: 0.70, cy: 0.05, r: 0.018, weight: 2),
+
+        // ── 潮吹き (Water Spout) – 細い二股型・1.5倍の高さ ────────────────
+        // 噴気口（ブローホール）
+        .circle(cx: 0.42, cy: 0.20, r: 0.022, weight: 4),
+        // メイン水柱（細め）ブローホール→分岐点(0.56)
+        .line(x1: 0.42, y1: 0.20, x2: 0.36, y2: 0.56, halfW: 0.025, weight: 28),
+        // 二股・左
+        .line(x1: 0.36, y1: 0.56, x2: 0.15, y2: 0.89, halfW: 0.018, weight: 20),
+        // 二股・右
+        .line(x1: 0.36, y1: 0.56, x2: 0.57, y2: 0.89, halfW: 0.018, weight: 20),
     ]
 }
 
