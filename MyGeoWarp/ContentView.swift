@@ -7,6 +7,7 @@ enum AppScreen: String, CaseIterable {
     case aurora  = "AURORA"
     case crystal = "CRYSTAL"
     case animal  = "ANIMAL"
+    case flower  = "FLOWER"
 
     var icon: String {
         switch self {
@@ -14,6 +15,7 @@ enum AppScreen: String, CaseIterable {
         case .aurora:  "wind"
         case .crystal: "diamond"
         case .animal:  "pawprint.fill"
+        case .flower:  "camera.macro"
         }
     }
 
@@ -23,6 +25,7 @@ enum AppScreen: String, CaseIterable {
         case .aurora:  Color(red: 0.20, green: 0.85, blue: 0.55)
         case .crystal: Color(red: 0.55, green: 0.88, blue: 1.00)
         case .animal:  Color(red: 1.00, green: 0.72, blue: 0.28)
+        case .flower:  Color(red: 1.00, green: 0.60, blue: 0.75)
         }
     }
 }
@@ -44,6 +47,8 @@ struct ContentView: View {
                 CrystalView(onPickerTap: { showPicker = true })
             case .animal:
                 AnimalView(onPickerTap: { showPicker = true })
+            case .flower:
+                FlowerView(onPickerTap: { showPicker = true })
             }
 
             if showPicker {
