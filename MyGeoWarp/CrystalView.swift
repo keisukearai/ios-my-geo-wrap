@@ -508,6 +508,7 @@ struct CrystalView: View {
         .onChange(of: spin)    { store.scene?.spinSpeed    = $0 }
         .onChange(of: gravity) { store.scene?.gravityScale = $0 }
         .onChange(of: chaos)   { store.scene?.chaosLevel   = $0 }
+        .onChange(of: showUI)  { store.scene?.view?.preferredFramesPerSecond = $0 ? 30 : 24 }
         .onAppear {
             spin    = Double.random(in: 0.2...0.8)
             gravity = Double.random(in: 0.3...0.7)

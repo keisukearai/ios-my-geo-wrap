@@ -615,6 +615,7 @@ struct AnimalView: View {
         }
         .onChange(of: speed)    { store.scene?.animSpeed = $0 }
         .onChange(of: colorHue) { store.scene?.colorHue = $0 }
+        .onChange(of: showUI)   { store.scene?.view?.preferredFramesPerSecond = $0 ? 30 : 24 }
         .onAppear {
             speed    = Double.random(in: 0.3...0.7)
             colorHue = Double.random(in: 0.0...1.0)
