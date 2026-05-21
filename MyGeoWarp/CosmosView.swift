@@ -733,7 +733,7 @@ struct CosmosView: View {
             if recorder.isActive {
                 recordingOverlay()
             } else {
-                TimelineView(.animation(minimumInterval: showUI ? 1.0/30.0 : 1.0/24.0)) { tl in
+                TimelineView(.animation(minimumInterval: showUI ? 1.0/30.0 : 1.0/20.0)) { tl in
                     let t      = tl.date.timeIntervalSinceReferenceDate
                     let canvas = GeoWarpCanvas(t: t, warp: warp, chaos: chaos,
                                               tempo: tempo, colorStyle: colorStyle, pools: pools)
