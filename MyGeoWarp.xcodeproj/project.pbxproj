@@ -13,8 +13,6 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C67FF8422FBBC7B30039F3AD /* MyGeoWarp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = MyGeoWarp;
 			sourceTree = "<group>";
 		};

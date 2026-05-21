@@ -31,7 +31,7 @@ enum AppScreen: String, CaseIterable {
 
 struct ContentView: View {
     @State private var currentScreen: AppScreen = .cosmos
-    @State private var showPicker = false
+    @State private var showPicker = true
 
     var body: some View {
         ZStack {
