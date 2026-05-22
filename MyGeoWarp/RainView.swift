@@ -253,14 +253,14 @@ struct RainView: View {
                 if case .rendering(let p) = recorder.state {
                     VStack(spacing: 8) {
                         ProgressView(value: p)
-                            .tint(accent)
+                            .tint(currentColor)
                             .padding(.horizontal, 40)
                         Text("\(Int(p * 100))%")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundColor(.white.opacity(0.5))
                     }
                 } else if case .saving = recorder.state {
-                    ProgressView().tint(accent)
+                    ProgressView().tint(currentColor)
                 }
                 Spacer()
             }
@@ -290,9 +290,9 @@ struct RainView: View {
                 Button(action: onPickerTap) {
                     Image(systemName: "square.grid.2x2")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(accent.opacity(0.75))
+                        .foregroundColor(currentColor.opacity(0.75))
                         .frame(width: 44, height: 44)
-                        .background(accent.opacity(0.08))
+                        .background(currentColor.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .padding(.trailing, 20)
@@ -306,7 +306,7 @@ struct RainView: View {
     @ViewBuilder
     private var controlsView: some View {
         VStack(spacing: 18) {
-            sliderRow("SPEED", speedLabel, value: $speed)
+            sliderRow("SPEED", speedLabel, value: $speed, color: currentColor)
             sliderRow("COLOR", colorLabel, value: $colorHue, color: currentColor)
             shapeRow
             saveButton
@@ -319,17 +319,17 @@ struct RainView: View {
         HStack(spacing: 12) {
             Text("SHAPE")
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundColor(accent.opacity(0.5))
+                .foregroundColor(currentColor.opacity(0.5))
                 .frame(width: 52, alignment: .leading)
             HStack(spacing: 6) {
                 ForEach(RainShape.allCases, id: \.self) { s in
                     Button(action: { shape = s }) {
                         Text(s.rawValue)
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundColor(shape == s ? .black : accent)
+                            .foregroundColor(shape == s ? .black : currentColor)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
-                            .background(shape == s ? accent : accent.opacity(0.12))
+                            .background(shape == s ? currentColor : currentColor.opacity(0.12))
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
                 }

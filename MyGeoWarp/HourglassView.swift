@@ -523,6 +523,7 @@ struct HourglassView: View {
     @State private var lastTouchDate: Date = .now
 
     private let accent          = Color(red: 0.95, green: 0.78, blue: 0.45)
+    private var uiColor: Color  { Color(hue: colorHue, saturation: 0.65, brightness: 0.95) }
     private let colorTimer      = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
     private let idleCheckTimer  = Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()
     private let speedRange: ClosedRange<Double> = 0...0.8
@@ -602,13 +603,13 @@ struct HourglassView: View {
                     .padding(.horizontal, 40)
                 if case .rendering(let p) = recorder.state {
                     VStack(spacing: 8) {
-                        ProgressView(value: p).tint(accent).padding(.horizontal, 40)
+                        ProgressView(value: p).tint(uiColor).padding(.horizontal, 40)
                         Text("\(Int(p * 100))%")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundColor(.white.opacity(0.5))
                     }
                 } else if case .saving = recorder.state {
-                    ProgressView().tint(accent)
+                    ProgressView().tint(uiColor)
                 }
                 Spacer()
             }
@@ -625,12 +626,12 @@ struct HourglassView: View {
                     .font(.system(size: 38, weight: .black, design: .monospaced))
                     .tracking(6)
                     .foregroundStyle(LinearGradient(
-                        colors: [accent, accent.opacity(0.55)],
+                        colors: [uiColor, uiColor.opacity(0.55)],
                         startPoint: .leading, endPoint: .trailing
                     ))
-                    .shadow(color: accent.opacity(0.9), radius: 14)
+                    .shadow(color: uiColor.opacity(0.9), radius: 14)
                 Rectangle()
-                    .fill(accent.opacity(0.3))
+                    .fill(uiColor.opacity(0.3))
                     .frame(height: 1).padding(.horizontal, 32)
             }
             HStack {
@@ -638,9 +639,9 @@ struct HourglassView: View {
                 Button(action: onPickerTap) {
                     Image(systemName: "square.grid.2x2")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(accent.opacity(0.75))
+                        .foregroundColor(uiColor.opacity(0.75))
                         .frame(width: 44, height: 44)
-                        .background(accent.opacity(0.08))
+                        .background(uiColor.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .padding(.trailing, 20)
@@ -667,20 +668,20 @@ struct HourglassView: View {
         HStack(spacing: 12) {
             Text("COLOR")
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundColor(accent.opacity(0.5))
+                .foregroundColor(uiColor.opacity(0.5))
                 .frame(width: 52, alignment: .leading)
-            Slider(value: $colorHue, in: 0...1).tint(accent)
+            Slider(value: $colorHue, in: 0...1).tint(uiColor)
             Text(colorLabel)
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundColor(accent)
+                .foregroundColor(uiColor)
                 .frame(width: 46, alignment: .trailing)
             Button { autoColor.toggle() } label: {
                 Text("AUTO")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(autoColor ? .black : accent.opacity(0.7))
+                    .foregroundColor(autoColor ? .black : uiColor.opacity(0.7))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(autoColor ? accent : accent.opacity(0.15))
+                    .background(autoColor ? uiColor : uiColor.opacity(0.15))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
         }
@@ -702,7 +703,7 @@ struct HourglassView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
                 .background(
-                    LinearGradient(colors: [accent, accent.opacity(0.75)],
+                    LinearGradient(colors: [uiColor, uiColor.opacity(0.75)],
                                    startPoint: .leading, endPoint: .trailing)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -743,12 +744,12 @@ struct HourglassView: View {
         HStack(spacing: 12) {
             Text(label)
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundColor(accent.opacity(0.5))
+                .foregroundColor(uiColor.opacity(0.5))
                 .frame(width: 52, alignment: .leading)
-            Slider(value: value, in: range).tint(accent)
+            Slider(value: value, in: range).tint(uiColor)
             Text(val)
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundColor(accent)
+                .foregroundColor(uiColor)
                 .frame(width: 46, alignment: .trailing)
         }
     }

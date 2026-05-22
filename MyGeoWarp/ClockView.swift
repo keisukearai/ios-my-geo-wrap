@@ -348,7 +348,7 @@ struct ClockView: View {
     @StateObject private var recorder = WallpaperRecorder()
 
     @State private var now:           Date   = .init()
-    @State private var colorHue:      Double = 0.72
+    @State private var colorHue:      Double = Double.random(in: 0...1)
     @State private var autoColor:     Bool   = false
     @State private var showUI:        Bool   = true
     @State private var phase:         Double = 0.0
@@ -357,7 +357,7 @@ struct ClockView: View {
     @State private var lastTouchDate: Date = .now
     @State private var lastFrameDate: Date = .now
 
-    private let accent = Color(red: 0.55, green: 0.45, blue: 0.90)
+    private var accent: Color { Color(hue: colorHue, saturation: 0.55, brightness: 0.90) }
     private let timer  = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
     private var floatOffset: CGSize {
@@ -453,6 +453,9 @@ struct ClockView: View {
                 .foregroundColor(.white.opacity(0.35))
                 .padding(.trailing, 10).padding(.bottom, 12)
                 .allowsHitTesting(false)
+        }
+        .onAppear {
+            colorHue = Double.random(in: 0...1)
         }
     }
 

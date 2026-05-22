@@ -10,6 +10,18 @@ enum FlowerKind: String, CaseIterable {
     case tsubaki  = "TSUBAKI"
     case asagao   = "ASAGAO"
     case tanpopo  = "TANPOPO"
+
+    func baseColor(colorHue: Double) -> Color {
+        let m = { (v: Double) in v.truncatingRemainder(dividingBy: 1.0) }
+        switch self {
+        case .sakura:   return Color(hue: m(0.94 + colorHue * 0.10), saturation: 0.55, brightness: 0.95)
+        case .himawari: return Color(hue: m(0.12 + colorHue * 0.08), saturation: 0.92, brightness: 0.98)
+        case .cosmos:   return Color(hue: m(0.88 + colorHue * 0.14), saturation: 0.68, brightness: 0.93)
+        case .tsubaki:  return Color(hue: m(0.97 + colorHue * 0.08), saturation: 0.78, brightness: 0.88)
+        case .asagao:   return Color(hue: m(0.68 + colorHue * 0.18), saturation: 0.72, brightness: 0.88)
+        case .tanpopo:  return Color(hue: m(0.14 + colorHue * 0.06), saturation: 0.92, brightness: 0.98)
+        }
+    }
 }
 
 // MARK: - FlowerOrder
@@ -673,6 +685,7 @@ struct FlowerView: View {
     @State private var lastTouchDate: Date = .now
 
     private let accent          = Color(red: 1.00, green: 0.60, blue: 0.75)
+    private var uiColor: Color  { currentFlower.baseColor(colorHue: colorHue) }
     private let idleCheckTimer  = Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -767,13 +780,13 @@ struct FlowerView: View {
                     .padding(.horizontal, 40)
                 if case .rendering(let p) = recorder.state {
                     VStack(spacing: 8) {
-                        ProgressView(value: p).tint(accent).padding(.horizontal, 40)
+                        ProgressView(value: p).tint(uiColor).padding(.horizontal, 40)
                         Text("\(Int(p * 100))%")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundColor(.white.opacity(0.5))
                     }
                 } else if case .saving = recorder.state {
-                    ProgressView().tint(accent)
+                    ProgressView().tint(uiColor)
                 }
                 Spacer()
             }
@@ -790,17 +803,17 @@ struct FlowerView: View {
                     .font(.system(size: 38, weight: .black, design: .monospaced))
                     .tracking(6)
                     .foregroundStyle(LinearGradient(
-                        colors: [accent, accent.opacity(0.55)],
+                        colors: [uiColor, uiColor.opacity(0.55)],
                         startPoint: .leading, endPoint: .trailing
                     ))
-                    .shadow(color: accent.opacity(0.9), radius: 14)
+                    .shadow(color: uiColor.opacity(0.9), radius: 14)
                 Text(currentFlower.rawValue)
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
                     .tracking(3)
-                    .foregroundColor(accent.opacity(0.60))
+                    .foregroundColor(uiColor.opacity(0.60))
                     .animation(.easeInOut(duration: 0.4), value: currentFlower)
                 Rectangle()
-                    .fill(accent.opacity(0.3))
+                    .fill(uiColor.opacity(0.3))
                     .frame(height: 1).padding(.horizontal, 32)
             }
             HStack {
@@ -808,9 +821,9 @@ struct FlowerView: View {
                 Button(action: onPickerTap) {
                     Image(systemName: "square.grid.2x2")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(accent.opacity(0.75))
+                        .foregroundColor(uiColor.opacity(0.75))
                         .frame(width: 44, height: 44)
-                        .background(accent.opacity(0.08))
+                        .background(uiColor.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .padding(.trailing, 20)
@@ -841,21 +854,21 @@ struct FlowerView: View {
                 Text("AUTO")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
                     .tracking(1)
-                    .foregroundColor(isAutoMode ? .black : accent)
+                    .foregroundColor(isAutoMode ? .black : uiColor)
                     .frame(width: 44)
                     .padding(.vertical, 14)
                     .background(
                         isAutoMode
-                            ? LinearGradient(colors: [accent.opacity(0.95), accent.opacity(0.82)],
+                            ? LinearGradient(colors: [uiColor.opacity(0.95), uiColor.opacity(0.82)],
                                              startPoint: .leading, endPoint: .trailing)
-                            : LinearGradient(colors: [accent.opacity(0.12), accent.opacity(0.12)],
+                            : LinearGradient(colors: [uiColor.opacity(0.12), uiColor.opacity(0.12)],
                                              startPoint: .leading, endPoint: .trailing)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(accent.opacity(isAutoMode ? 0 : 0.35), lineWidth: 1))
+                        .strokeBorder(uiColor.opacity(isAutoMode ? 0 : 0.35), lineWidth: 1))
             }
-            .shadow(color: isAutoMode ? accent.opacity(0.45) : .clear, radius: 8)
+            .shadow(color: isAutoMode ? uiColor.opacity(0.45) : .clear, radius: 8)
 
             Button {
                 let startT = Date.timeIntervalSinceReferenceDate
@@ -870,7 +883,7 @@ struct FlowerView: View {
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(LinearGradient(colors: [accent, accent.opacity(0.75)],
+                    .background(LinearGradient(colors: [uiColor, uiColor.opacity(0.75)],
                                                startPoint: .leading, endPoint: .trailing))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
@@ -885,12 +898,12 @@ struct FlowerView: View {
         HStack(spacing: 12) {
             Text(label)
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundColor(accent.opacity(0.5))
+                .foregroundColor(uiColor.opacity(0.5))
                 .frame(width: 52, alignment: .leading)
-            Slider(value: value, in: 0...1).tint(accent)
+            Slider(value: value, in: 0...1).tint(uiColor)
             Text(val)
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundColor(accent)
+                .foregroundColor(uiColor)
                 .frame(width: 52, alignment: .trailing)
         }
     }
