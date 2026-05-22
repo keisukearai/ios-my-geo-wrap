@@ -21,8 +21,10 @@ struct ClockFace: View {
         return t.truncatingRemainder(dividingBy: 3600) / 3600
     }
     private var hourFraction: Double {
-        let t = now.timeIntervalSince1970
-        return t.truncatingRemainder(dividingBy: 43200) / 43200
+        let hour   = Double(calendar.component(.hour,   from: now))
+        let minute = Double(calendar.component(.minute, from: now))
+        let second = Double(calendar.component(.second, from: now))
+        return (hour.truncatingRemainder(dividingBy: 12) * 3600 + minute * 60 + second) / 43200
     }
     private var dayFraction: Double {
         let d   = Double(calendar.component(.day, from: now))
@@ -54,11 +56,13 @@ struct ClockFace: View {
             let hHour   = (colorHue + 0.14).truncatingRemainder(dividingBy: 1.0)
             let hMinute = (colorHue + 0.07).truncatingRemainder(dividingBy: 1.0)
             drawHand(&ctx, cx: cx, cy: cy,
-                     angle: monthFraction  * .pi * 2 - .pi / 2, len: radius * 0.38,
-                     kind: .block,    color: Color(hue: hMonth,  saturation: 0.55, brightness: 0.95, opacity: 0.50))
+                     angle: monthFraction  * .pi * 2 - .pi / 2, len: radius * 0.28,
+                     kind: .block,    color: Color(hue: hMonth,  saturation: 0.55, brightness: 0.95, opacity: 0.50),
+                     tipDecor: .crescent)
             drawHand(&ctx, cx: cx, cy: cy,
                      angle: dayFraction    * .pi * 2 - .pi / 2, len: radius * 0.58,
-                     kind: .drop,     color: Color(hue: hDay,    saturation: 0.55, brightness: 0.95, opacity: 0.62))
+                     kind: .drop,     color: Color(hue: hDay,    saturation: 0.55, brightness: 0.95, opacity: 0.62),
+                     tipDecor: .sun)
             drawHand(&ctx, cx: cx, cy: cy,
                      angle: hourFraction   * .pi * 2 - .pi / 2, len: radius * 0.78,
                      kind: .sword,    color: Color(hue: hHour,   saturation: 0.55, brightness: 0.95, opacity: 0.75))
@@ -77,49 +81,93 @@ struct ClockFace: View {
     }
 
     private func drawSparkles(_ ctx: inout GraphicsContext, cx: Double, cy: Double, radius: Double) {
-        let bezelR    = radius * 1.10
-        let secAngle  = secondFraction * .pi * 2 - .pi / 2
-        let threshold = 0.21
+        let bezelR       = radius * 1.10
+        let secAngle     = secondFraction * .pi * 2 - .pi / 2
+        let minAngle     = minuteFraction * .pi * 2 - .pi / 2
+        let secThreshold = 0.21
+        // minute hand is 1/60 as fast; 0.007 ≈ 2s of strong sparkle (intensity > 0.5)
+        let minThreshold = 0.007
+        let hMinute      = (colorHue + 0.07).truncatingRemainder(dividingBy: 1.0)
 
         for i in [0, 12, 24] {
             let tickAngle = Double(i) * .pi * 2.0 / 36.0 - .pi / 2.0 + bezelAngle
-            var diff = (secAngle - tickAngle).truncatingRemainder(dividingBy: .pi * 2)
-            if diff >  .pi { diff -= .pi * 2 }
-            if diff < -.pi { diff += .pi * 2 }
-            let absDiff = abs(diff)
-            guard absDiff < threshold else { continue }
-
-            let intensity = 1.0 - absDiff / threshold
-            let shimmer   = 0.7 + 0.3 * sin(phase * 6.0)
             let tx = cx + cos(tickAngle) * bezelR
             let ty = cy + sin(tickAngle) * bezelR
 
-            let glowR = 10.0 * intensity
-            let glowColor = Color(hue: colorHue, saturation: 0.2, brightness: 1.0,
-                                  opacity: intensity * 0.55 * shimmer)
-            ctx.fill(Path(ellipseIn: CGRect(x: tx - glowR, y: ty - glowR,
-                                             width: glowR * 2, height: glowR * 2)),
-                     with: .color(glowColor))
+            // --- second hand sparkle ---
+            var secDiff = (secAngle - tickAngle).truncatingRemainder(dividingBy: .pi * 2)
+            if secDiff >  .pi { secDiff -= .pi * 2 }
+            if secDiff < -.pi { secDiff += .pi * 2 }
+            let absSecDiff = abs(secDiff)
+            if absSecDiff < secThreshold {
+                let intensity = 1.0 - absSecDiff / secThreshold
+                let shimmer   = 0.7 + 0.3 * sin(phase * 6.0)
 
-            let sparkColor = Color(hue: colorHue, saturation: 0.25, brightness: 1.0,
-                                   opacity: intensity * 0.65 * shimmer)
-            for r in 0..<4 {
-                let rayAngle = tickAngle + Double(r) * .pi / 2.0
-                let outer = 6.0 + 18.0 * intensity
-                var ray = Path()
-                ray.move(to:    CGPoint(x: tx + cos(rayAngle) * 6.0, y: ty + sin(rayAngle) * 6.0))
-                ray.addLine(to: CGPoint(x: tx + cos(rayAngle) * outer, y: ty + sin(rayAngle) * outer))
-                ctx.stroke(ray, with: .color(sparkColor),
-                           style: StrokeStyle(lineWidth: 2.0, lineCap: .round))
+                let glowR = 10.0 * intensity
+                let glowColor = Color(hue: colorHue, saturation: 0.2, brightness: 1.0,
+                                      opacity: intensity * 0.55 * shimmer)
+                ctx.fill(Path(ellipseIn: CGRect(x: tx - glowR, y: ty - glowR,
+                                                 width: glowR * 2, height: glowR * 2)),
+                         with: .color(glowColor))
+
+                let sparkColor = Color(hue: colorHue, saturation: 0.25, brightness: 1.0,
+                                       opacity: intensity * 0.65 * shimmer)
+                for r in 0..<4 {
+                    let rayAngle = tickAngle + Double(r) * .pi / 2.0
+                    let outer = 6.0 + 18.0 * intensity
+                    var ray = Path()
+                    ray.move(to:    CGPoint(x: tx + cos(rayAngle) * 6.0, y: ty + sin(rayAngle) * 6.0))
+                    ray.addLine(to: CGPoint(x: tx + cos(rayAngle) * outer, y: ty + sin(rayAngle) * outer))
+                    ctx.stroke(ray, with: .color(sparkColor),
+                               style: StrokeStyle(lineWidth: 2.0, lineCap: .round))
+                }
+                for r in 0..<4 {
+                    let rayAngle = tickAngle + Double(r) * .pi / 2.0 + .pi / 4.0
+                    let outer = 4.0 + 10.0 * intensity
+                    var ray = Path()
+                    ray.move(to:    CGPoint(x: tx + cos(rayAngle) * 4.0, y: ty + sin(rayAngle) * 4.0))
+                    ray.addLine(to: CGPoint(x: tx + cos(rayAngle) * outer, y: ty + sin(rayAngle) * outer))
+                    ctx.stroke(ray, with: .color(sparkColor.opacity(0.7)),
+                               style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
+                }
             }
-            for r in 0..<4 {
-                let rayAngle = tickAngle + Double(r) * .pi / 2.0 + .pi / 4.0
-                let outer = 4.0 + 10.0 * intensity
-                var ray = Path()
-                ray.move(to:    CGPoint(x: tx + cos(rayAngle) * 4.0, y: ty + sin(rayAngle) * 4.0))
-                ray.addLine(to: CGPoint(x: tx + cos(rayAngle) * outer, y: ty + sin(rayAngle) * outer))
-                ctx.stroke(ray, with: .color(sparkColor.opacity(0.7)),
-                           style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
+
+            // --- minute hand sparkle (half size, 2s duration) ---
+            var minDiff = (minAngle - tickAngle).truncatingRemainder(dividingBy: .pi * 2)
+            if minDiff >  .pi { minDiff -= .pi * 2 }
+            if minDiff < -.pi { minDiff += .pi * 2 }
+            let absMinDiff = abs(minDiff)
+            if absMinDiff < minThreshold {
+                let intensity = 1.0 - absMinDiff / minThreshold
+                let shimmer   = 0.7 + 0.3 * sin(phase * 6.0)
+
+                let glowR = 5.0 * intensity
+                let glowColor = Color(hue: hMinute, saturation: 0.2, brightness: 1.0,
+                                      opacity: intensity * 0.55 * shimmer)
+                ctx.fill(Path(ellipseIn: CGRect(x: tx - glowR, y: ty - glowR,
+                                                 width: glowR * 2, height: glowR * 2)),
+                         with: .color(glowColor))
+
+                let sparkColor = Color(hue: hMinute, saturation: 0.25, brightness: 1.0,
+                                       opacity: intensity * 0.65 * shimmer)
+                for r in 0..<4 {
+                    let rayAngle = tickAngle + Double(r) * .pi / 2.0
+                    let outer = 3.0 + 9.0 * intensity
+                    var ray = Path()
+                    ray.move(to:    CGPoint(x: tx + cos(rayAngle) * 3.0, y: ty + sin(rayAngle) * 3.0))
+                    ray.addLine(to: CGPoint(x: tx + cos(rayAngle) * outer, y: ty + sin(rayAngle) * outer))
+                    ctx.stroke(ray, with: .color(sparkColor),
+                               style: StrokeStyle(lineWidth: 1.0, lineCap: .round))
+                }
+                for r in 0..<4 {
+                    let rayAngle = tickAngle + Double(r) * .pi / 2.0 + .pi / 4.0
+                    let outer = 2.0 + 5.0 * intensity
+                    var ray = Path()
+                    ray.move(to:    CGPoint(x: tx + cos(rayAngle) * 2.0, y: ty + sin(rayAngle) * 2.0))
+                    ray.addLine(to: CGPoint(x: tx + cos(rayAngle) * outer, y: ty + sin(rayAngle) * outer))
+                    ctx.stroke(ray, with: .color(sparkColor.opacity(0.7)),
+                               style: StrokeStyle(lineWidth: 0.7, lineCap: .round))
+                }
             }
         }
     }
@@ -152,11 +200,13 @@ struct ClockFace: View {
     }
 
     private enum HandKind { case block, drop, sword, arrow, hairline }
+    private enum TipDecor { case none, crescent, sun }
 
     private func drawHand(_ ctx: inout GraphicsContext,
                            cx: Double, cy: Double,
                            angle: Double, len: Double,
-                           kind: HandKind, color: Color) {
+                           kind: HandKind, color: Color,
+                           tipDecor: TipDecor = .none) {
         let dx  =  cos(angle)
         let dy  =  sin(angle)
         let px  = -sin(angle)
@@ -215,9 +265,11 @@ struct ClockFace: View {
             p.addLine(to: CGPoint(x: tx, y: ty))
             ctx.stroke(p, with: .color(color),
                        style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
-            let r = 3.8
-            ctx.fill(Path(ellipseIn: CGRect(x: tx - r, y: ty - r, width: r * 2, height: r * 2)),
-                     with: .color(color))
+            if tipDecor != .sun {
+                let r = 7.6
+                ctx.fill(Path(ellipseIn: CGRect(x: tx - r, y: ty - r, width: r * 2, height: r * 2)),
+                         with: .color(color))
+            }
 
         case .block:
             let w = len * 0.10 + 2.0
@@ -226,6 +278,45 @@ struct ClockFace: View {
             p.addLine(to: CGPoint(x: tx, y: ty))
             ctx.stroke(p, with: .color(color),
                        style: StrokeStyle(lineWidth: w, lineCap: .square))
+        }
+
+        switch tipDecor {
+        case .crescent:
+            let moonColor = Color(red: 0.72, green: 0.76, blue: 0.84).opacity(0.88)
+            let bigR = 10.08
+            let smallR = 8.93
+            let off = 6.48
+            let gap = bigR + 12.0
+            let stx = tx + dx * gap
+            let sty = ty + dy * gap
+            let bigRect   = CGRect(x: stx - bigR, y: sty - bigR, width: bigR * 2, height: bigR * 2)
+            let smallRect = CGRect(x: stx + px * off - smallR, y: sty + py * off - smallR,
+                                    width: smallR * 2, height: smallR * 2)
+            ctx.drawLayer { layerCtx in
+                layerCtx.fill(Path(ellipseIn: bigRect), with: .color(moonColor))
+                layerCtx.blendMode = .destinationOut
+                layerCtx.fill(Path(ellipseIn: smallRect), with: .color(.black))
+            }
+        case .sun:
+            let sunColor = Color(red: 0.80, green: 0.28, blue: 0.25).opacity(0.88)
+            let gap = 10.0
+            let stx = tx + dx * gap
+            let sty = ty + dy * gap
+            let sunR = 4.79
+            ctx.fill(Path(ellipseIn: CGRect(x: stx - sunR, y: sty - sunR,
+                                             width: sunR * 2, height: sunR * 2)),
+                     with: .color(sunColor))
+            for i in 0..<8 {
+                let ray = Double(i) * .pi / 4.0
+                let innerR = sunR + 1.58
+                let outerR = sunR + 3.78
+                var spoke = Path()
+                spoke.move(to:    CGPoint(x: stx + cos(ray) * innerR, y: sty + sin(ray) * innerR))
+                spoke.addLine(to: CGPoint(x: stx + cos(ray) * outerR, y: sty + sin(ray) * outerR))
+                ctx.stroke(spoke, with: .color(sunColor), style: StrokeStyle(lineWidth: 0.76, lineCap: .round))
+            }
+        case .none:
+            break
         }
     }
 }
