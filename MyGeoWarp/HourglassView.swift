@@ -3,6 +3,26 @@ import Combine
 import SpriteKit
 import SwiftUI
 
+// MARK: - Stone Color Palette
+
+private func hourglassGrainHSB(at t: CGFloat, variantOffset: CGFloat = 0) -> (h: CGFloat, s: CGFloat, b: CGFloat) {
+    let palette: [(CGFloat, CGFloat, CGFloat)] = [
+        (0.06, 0.30, 0.54),  // UMBER
+        (0.07, 0.14, 0.44),  // FLINT
+        (0.08, 0.05, 0.40),  // GRAY
+        (0.78, 0.18, 0.42),  // DUSK
+        (0.80, 0.22, 0.34),  // SHADOW
+        (0.80, 0.15, 0.24),  // ONYX
+    ]
+    let clamped = min(max(t + variantOffset, 0), 1)
+    let scaled  = clamped * CGFloat(palette.count - 1)
+    let lo = min(Int(scaled), palette.count - 2)
+    let frac = scaled - CGFloat(lo)
+    let (h0, s0, b0) = palette[lo]
+    let (h1, s1, b1) = palette[lo + 1]
+    return (h0 + (h1 - h0) * frac, s0 + (s1 - s0) * frac, b0 + (b1 - b0) * frac)
+}
+
 // MARK: - Hourglass Frame (ImageRenderer用 — 決定的アニメーション)
 
 struct HourglassFrame: View {
@@ -18,7 +38,7 @@ struct HourglassFrame: View {
         let slender = form < 0.5 ? (0.5 - form) * 2.0 : 0.0
         let barrel  = form > 0.5 ? (form - 0.5) * 2.0 : 0.0
         return (
-            neck: 0.090 - slender * 0.008 - barrel * 0.003,
+            neck: 0.100 - slender * 0.008 - barrel * 0.003,
             topX: 0.88 * (1.0 - slender * 0.40),
             topY: 0.88 * (1.0 + slender * 0.50),
             bulge: 0.88 * barrel * 0.45
@@ -28,9 +48,9 @@ struct HourglassFrame: View {
     var body: some View {
         Canvas { ctx, sz in
             ctx.fill(Path(CGRect(origin: .zero, size: sz)),
-                     with: .color(Color(red: 0.08, green: 0.06, blue: 0.12)))
+                     with: .color(Color(red: 0.14, green: 0.13, blue: 0.15)))
 
-            let r  = min(sz.width, sz.height) * 0.40
+            let r  = min(sz.width, sz.height) * 0.32
             let cx = sz.width  / 2
             let cy = sz.height / 2
 
@@ -121,7 +141,8 @@ struct HourglassFrame: View {
 
     private func drawSand(_ ctx: inout GraphicsContext,
                            cx: Double, cy: Double, r: Double, t: Double, rotation: Double) {
-        let sandColor = Color(hue: colorHue, saturation: 0.65, brightness: 0.95).opacity(0.82)
+        let (sh, ss, sb) = hourglassGrainHSB(at: CGFloat(colorHue))
+        let sandColor = Color(hue: Double(sh), saturation: Double(ss), brightness: min(Double(sb) + 0.20, 1.0)).opacity(0.82)
         let phase = (t.truncatingRemainder(dividingBy: cycleDuration)) / cycleDuration
         let fillRatio = 1.0 - phase
 
@@ -190,14 +211,14 @@ class HourglassScene: SKScene {
 
     override func didMove(to view: SKView) {
         view.preferredFramesPerSecond = 30
-        backgroundColor = UIColor(red: 0.08, green: 0.06, blue: 0.12, alpha: 1.0)
+        backgroundColor = UIColor(red: 0.14, green: 0.13, blue: 0.15, alpha: 1.0)
         physicsWorld.gravity = CGVector(dx: 0, dy: -9.8)
         setupContainer()
         spawnGrains()
         scheduleFlip()
     }
 
-    private var containerRadius: CGFloat { min(size.width, size.height) * 0.40 }
+    private var containerRadius: CGFloat { min(size.width, size.height) * 0.32 }
     private var containerCenter: CGPoint { CGPoint(x: size.width / 2, y: size.height / 2) }
 
     // MARK: - Container setup
@@ -221,7 +242,7 @@ class HourglassScene: SKScene {
         let baseTop: CGFloat = r * 0.88
         let slender = form2 < 0.5 ? CGFloat((0.5 - form2) * 2.0) : 0.0
         let barrel  = form2 > 0.5 ? CGFloat((form2 - 0.5) * 2.0) : 0.0
-        let neck: CGFloat = r * (0.090 - slender * 0.008 - barrel * 0.003)
+        let neck: CGFloat = r * (0.100 - slender * 0.008 - barrel * 0.003)
         return (neck,
                 baseTop * (1.0 - slender * 0.40),
                 baseTop * (1.0 + slender * 0.50),
@@ -366,9 +387,11 @@ class HourglassScene: SKScene {
     private func buildFallingStream(node: SKNode, r: CGFloat) {
         let (_, _, topY, _) = shapeParams()
         let grainRadius = r / 44.0 * 0.56
-        let textures = (0..<3).map { i in
-            makeGrainTexture(radius: grainRadius * CGFloat(0.72 + Double(i) * 0.08),
-                             hue: CGFloat(colorHue) + CGFloat(i) * 0.015)
+        let textures: [SKTexture] = (0..<3).map { i in
+            let offset = CGFloat(i) * 0.04
+            let (h, s, b) = grainHSB(at: CGFloat(colorHue), variantOffset: offset)
+            return makeGrainTexture(radius: grainRadius * CGFloat(0.72 + Double(i) * 0.08),
+                                    hue: h, saturation: s, brightness: b)
         }
 
         for i in 0..<10 {
@@ -407,12 +430,12 @@ class HourglassScene: SKScene {
 
     // MARK: - Grains
 
-    private func makeGrainTexture(radius: CGFloat, hue: CGFloat) -> SKTexture {
+    private func makeGrainTexture(radius: CGFloat, hue: CGFloat, saturation: CGFloat, brightness: CGFloat) -> SKTexture {
         let diameter = Int(ceil(radius * 2))
         let size = CGSize(width: diameter, height: diameter)
         let renderer = UIGraphicsImageRenderer(size: size)
         let image = renderer.image { ctx in
-            UIColor(hue: hue, saturation: 0.60, brightness: 0.90, alpha: 0.88).setFill()
+            UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 0.88).setFill()
             ctx.cgContext.fillEllipse(in: CGRect(origin: .zero, size: size))
             UIColor(white: 1.0, alpha: 0.25).setFill()
             let inset: CGFloat = max(1, radius * 0.15)
@@ -421,31 +444,58 @@ class HourglassScene: SKScene {
         return SKTexture(image: image)
     }
 
+    private func grainHSB(at t: CGFloat, variantOffset: CGFloat = 0) -> (h: CGFloat, s: CGFloat, b: CGFloat) {
+        hourglassGrainHSB(at: t, variantOffset: variantOffset)
+    }
+
     private func spawnGrains() {
         guard let node = containerNode else { return }
         let r = containerRadius
         let grainRadius: CGFloat = r / 44.0 * 0.56
+        let mediumGrainRadius: CGFloat = grainRadius * 1.5
+        let largeGrainRadius: CGFloat = grainRadius * 2.0
         let hue = CGFloat(colorHue)
-        let grainSize = CGSize(width: grainRadius * 2, height: grainRadius * 2)
 
-        let textures = (0..<5).map { i in
-            makeGrainTexture(radius: grainRadius, hue: hue + CGFloat(i) * 0.02)
+        let textures = (0..<5).map { i -> SKTexture in
+            let (h, s, b) = grainHSB(at: hue, variantOffset: CGFloat(i) * 0.04)
+            return makeGrainTexture(radius: grainRadius, hue: h, saturation: s, brightness: b)
+        }
+        let mediumTextures = (0..<5).map { i -> SKTexture in
+            let (h, s, b) = grainHSB(at: hue, variantOffset: CGFloat(i) * 0.04)
+            return makeGrainTexture(radius: mediumGrainRadius, hue: h, saturation: s, brightness: b)
+        }
+        let largeTextures = (0..<5).map { i -> SKTexture in
+            let (h, s, b) = grainHSB(at: hue, variantOffset: CGFloat(i) * 0.04)
+            return makeGrainTexture(radius: largeGrainRadius, hue: h, saturation: s, brightness: b)
         }
 
         let (neck, topX, topY, _) = shapeParams()
-        let wallMargin = grainRadius * 2.5
 
-        for i in 0..<540 {
-            let grain = SKSpriteNode(texture: textures[i % 5], size: grainSize)
-            let y = CGFloat.random(in: -(topY - wallMargin) ... -(wallMargin))
-            // compute wall position at this y so grains stay inside the hourglass
+        for i in 0..<346 {
+            let radius: CGFloat
+            let tex: SKTexture
+            if i < 35 {          // 2x: ~10%
+                radius = largeGrainRadius
+                tex = largeTextures[i % 5]
+            } else if i < 70 {   // 1.5x: ~10%
+                radius = mediumGrainRadius
+                tex = mediumTextures[i % 5]
+            } else {             // 1x: ~80%
+                radius = grainRadius
+                tex = textures[i % 5]
+            }
+            let size = CGSize(width: radius * 2, height: radius * 2)
+            let margin = radius * 2.5
+
+            let grain = SKSpriteNode(texture: tex, size: size)
+            let y = CGFloat.random(in: -(topY - margin) ... -(margin))
             let wallX = neck + (topX - neck) * (-y) / topY
-            let maxX = wallX - wallMargin
+            let maxX = wallX - margin
             guard maxX > 0 else { continue }
             let x = CGFloat.random(in: -maxX...maxX)
             grain.position = CGPoint(x: x, y: y)
 
-            grain.physicsBody = SKPhysicsBody(circleOfRadius: grainRadius)
+            grain.physicsBody = SKPhysicsBody(circleOfRadius: radius)
             grain.physicsBody?.restitution    = 0.15
             grain.physicsBody?.friction       = 0.50
             grain.physicsBody?.density        = 2.0
@@ -475,14 +525,33 @@ class HourglassScene: SKScene {
     }
 
     private func updateColors() {
-        let hue = CGFloat(colorHue)
+        let t = CGFloat(colorHue)
 
-        let grainRadius = containerRadius / 44.0 * 0.56
-        let textures = (0..<5).map { i in
-            makeGrainTexture(radius: grainRadius, hue: hue + CGFloat(i) * 0.02)
+        let grainRadius       = containerRadius / 44.0 * 0.56
+        let mediumGrainRadius = grainRadius * 1.5
+        let largeGrainRadius  = grainRadius * 2.0
+        let textures = (0..<5).map { i -> SKTexture in
+            let (h, s, b) = grainHSB(at: t, variantOffset: CGFloat(i) * 0.04)
+            return makeGrainTexture(radius: grainRadius, hue: h, saturation: s, brightness: b)
+        }
+        let mediumTextures = (0..<5).map { i -> SKTexture in
+            let (h, s, b) = grainHSB(at: t, variantOffset: CGFloat(i) * 0.04)
+            return makeGrainTexture(radius: mediumGrainRadius, hue: h, saturation: s, brightness: b)
+        }
+        let largeTextures = (0..<5).map { i -> SKTexture in
+            let (h, s, b) = grainHSB(at: t, variantOffset: CGFloat(i) * 0.04)
+            return makeGrainTexture(radius: largeGrainRadius, hue: h, saturation: s, brightness: b)
         }
         for (i, grain) in grainNodes.enumerated() {
-            (grain as? SKSpriteNode)?.texture = textures[i % 5]
+            let tex: SKTexture
+            if i < 35 {
+                tex = largeTextures[i % 5]
+            } else if i < 70 {
+                tex = mediumTextures[i % 5]
+            } else {
+                tex = textures[i % 5]
+            }
+            (grain as? SKSpriteNode)?.texture = tex
         }
         for (i, grain) in streamNodes.enumerated() {
             grain.texture = textures[i % 5]
@@ -522,8 +591,10 @@ struct HourglassView: View {
     @State private var isIdle:        Bool = false
     @State private var lastTouchDate: Date = .now
 
-    private let accent          = Color(red: 0.95, green: 0.78, blue: 0.45)
-    private var uiColor: Color  { Color(hue: colorHue, saturation: 0.65, brightness: 0.95) }
+    private var uiColor: Color {
+        let (h, s, b) = hourglassGrainHSB(at: CGFloat(colorHue))
+        return Color(hue: Double(h), saturation: Double(s), brightness: max(Double(b) + 0.30, 0.55))
+    }
     private let colorTimer      = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
     private let idleCheckTimer  = Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()
     private let speedRange: ClosedRange<Double> = 0...0.8
@@ -593,7 +664,7 @@ struct HourglassView: View {
     @ViewBuilder
     private var recordingOverlay: some View {
         ZStack {
-            Color(red: 0.08, green: 0.06, blue: 0.12).ignoresSafeArea()
+            Color(red: 0.14, green: 0.13, blue: 0.15).ignoresSafeArea()
             VStack(spacing: 20) {
                 Spacer()
                 Text(recorder.statusText)
@@ -771,9 +842,9 @@ struct HourglassView: View {
     }
     private var colorLabel: String {
         switch colorHue {
-        case ..<0.08: "AMBER"; case 0.08..<0.15: "GOLD"
-        case 0.15..<0.40: "GREEN"; case 0.40..<0.65: "BLUE"
-        case 0.65..<0.80: "VIOLET"; default: "ROSE"
+        case ..<0.17: "UMBER"; case 0.17..<0.33: "FLINT"
+        case 0.33..<0.50: "GRAY"; case 0.50..<0.67: "DUSK"
+        case 0.67..<0.83: "SHADOW"; default: "ONYX"
         }
     }
 }
