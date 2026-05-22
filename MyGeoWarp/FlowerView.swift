@@ -715,6 +715,13 @@ struct FlowerView: View {
             morphProgress = 1.0
             scheduleNextFlower()
         }
+        .overlay(alignment: .bottomTrailing) {
+            Text(isIdle ? "15fps" : (showUI ? "30fps" : "20fps"))
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .foregroundColor(.white.opacity(0.35))
+                .padding(.trailing, 10).padding(.bottom, 12)
+                .allowsHitTesting(false)
+        }
         .onReceive(idleCheckTimer) { _ in
             if Date().timeIntervalSince(lastTouchDate) >= 60 { isIdle = true }
         }
