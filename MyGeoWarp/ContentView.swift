@@ -10,6 +10,7 @@ enum AppScreen: String, CaseIterable {
     case flower    = "FLOWER"
     case hourglass = "HOURGLASS"
     case clock     = "CLOCK"
+    case rain      = "RAIN"
 
     var icon: String {
         switch self {
@@ -20,6 +21,7 @@ enum AppScreen: String, CaseIterable {
         case .flower:     "camera.macro"
         case .hourglass:  "hourglass"
         case .clock:      "clock"
+        case .rain:       "drop.fill"
         }
     }
 
@@ -32,6 +34,7 @@ enum AppScreen: String, CaseIterable {
         case .flower:     Color(red: 1.00, green: 0.60, blue: 0.75)
         case .hourglass:  Color(red: 0.95, green: 0.78, blue: 0.45)
         case .clock:      Color(red: 0.55, green: 0.45, blue: 0.90)
+        case .rain:       Color(red: 0.20, green: 0.90, blue: 0.85)
         }
     }
 }
@@ -59,6 +62,8 @@ struct ContentView: View {
                 HourglassView(onPickerTap: { showPicker = true })
             case .clock:
                 ClockView(onPickerTap: { showPicker = true })
+            case .rain:
+                RainView(onPickerTap: { showPicker = true })
             }
 
             if showPicker {

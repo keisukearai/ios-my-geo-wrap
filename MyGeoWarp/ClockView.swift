@@ -230,10 +230,31 @@ struct ClockFace: View {
     }
 }
 
+// MARK: - Clock Frame (for ImageRenderer)
+
+struct ClockFrame: View {
+    var t: Double
+    let colorHue: Double
+    let startDate: Date
+    let size: CGSize
+
+    var body: some View {
+        ClockFace(
+            now: startDate.addingTimeInterval(t),
+            colorHue: colorHue,
+            bezelAngle: -(t / 60.0) * .pi * 2,
+            phase: t
+        )
+        .frame(width: size.width, height: size.height)
+    }
+}
+
 // MARK: - Clock View
 
 struct ClockView: View {
     let onPickerTap: () -> Void
+
+    @StateObject private var recorder = WallpaperRecorder()
 
     @State private var now:       Date   = .init()
     @State private var colorHue:  Double = 0.72
@@ -253,68 +274,75 @@ struct ClockView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
         ZStack {
-            ClockFace(now: now, colorHue: colorHue,
-                      bezelAngle: -(phase / 60.0) * .pi * 2,
-                      phase: phase)
-                .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.3)) { showUI.toggle() }
-                }
+            Color(red: 0.06, green: 0.05, blue: 0.10).ignoresSafeArea()
+            if recorder.isActive {
+                recordingOverlay
+            } else {
+                GeometryReader { geo in
+                ZStack {
+                    ClockFace(now: now, colorHue: colorHue,
+                              bezelAngle: -(phase / 60.0) * .pi * 2,
+                              phase: phase)
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.3)) { showUI.toggle() }
+                        }
 
-            let cal = Calendar.current
-            let hh = String(format: "%02d", cal.component(.hour,   from: now))
-            let mm = String(format: "%02d", cal.component(.minute, from: now))
-            let ss = String(format: "%02d", cal.component(.second, from: now))
-            let monthNames = ["JAN","FEB","MAR","APR","MAY","JUN",
-                              "JUL","AUG","SEP","OCT","NOV","DEC"]
-            let moIdx = cal.component(.month, from: now) - 1
-            let mo    = monthNames[max(0, min(moIdx, 11))]
-            let dd    = String(format: "%02d", cal.component(.day,  from: now))
-            let yyyy  = String(cal.component(.year, from: now))
-            let cSecond = Color(hue: colorHue,                                                saturation: 0.45, brightness: 0.95)
-            let cMinute = Color(hue: (colorHue + 0.07).truncatingRemainder(dividingBy: 1.0), saturation: 0.45, brightness: 0.95)
-            let cHour   = Color(hue: (colorHue + 0.14).truncatingRemainder(dividingBy: 1.0), saturation: 0.45, brightness: 0.95)
-            let cDay    = Color(hue: (colorHue + 0.21).truncatingRemainder(dividingBy: 1.0), saturation: 0.45, brightness: 0.95)
-            let cMonth  = Color(hue: (colorHue + 0.28).truncatingRemainder(dividingBy: 1.0), saturation: 0.45, brightness: 0.95)
-            VStack(spacing: 4 * floatScale) {
-                HStack(spacing: 0) {
-                    Text(hh).foregroundColor(cHour.opacity(0.88))
-                    Text(":").foregroundColor(cHour.opacity(0.44))
-                    Text(mm).foregroundColor(cMinute.opacity(0.88))
-                    Text(":").foregroundColor(cMinute.opacity(0.44))
-                    Text(ss).foregroundColor(cSecond.opacity(0.88))
-                }
-                .font(.system(size: 28 * floatScale, weight: .semibold, design: .monospaced))
-                HStack(spacing: 0) {
-                    Text(dd).foregroundColor(cDay.opacity(0.50))
-                    Text("/").foregroundColor(cDay.opacity(0.25))
-                    Text(mo).foregroundColor(cMonth.opacity(0.50))
-                    Text("/").foregroundColor(cMonth.opacity(0.25))
-                    Text(yyyy).foregroundColor(cMonth.opacity(0.35))
-                }
-                .font(.system(size: 14 * floatScale, weight: .semibold, design: .monospaced))
-            }
-            .offset(x: floatOffset.width, y: floatOffset.height + geo.size.height * 0.25)
-            .allowsHitTesting(false)
+                    let cal = Calendar.current
+                    let hh = String(format: "%02d", cal.component(.hour,   from: now))
+                    let mm = String(format: "%02d", cal.component(.minute, from: now))
+                    let ss = String(format: "%02d", cal.component(.second, from: now))
+                    let monthNames = ["JAN","FEB","MAR","APR","MAY","JUN",
+                                      "JUL","AUG","SEP","OCT","NOV","DEC"]
+                    let moIdx = cal.component(.month, from: now) - 1
+                    let mo    = monthNames[max(0, min(moIdx, 11))]
+                    let dd    = String(format: "%02d", cal.component(.day,  from: now))
+                    let yyyy  = String(cal.component(.year, from: now))
+                    let cSecond = Color(hue: colorHue,                                                saturation: 0.45, brightness: 0.95)
+                    let cMinute = Color(hue: (colorHue + 0.07).truncatingRemainder(dividingBy: 1.0), saturation: 0.45, brightness: 0.95)
+                    let cHour   = Color(hue: (colorHue + 0.14).truncatingRemainder(dividingBy: 1.0), saturation: 0.45, brightness: 0.95)
+                    let cDay    = Color(hue: (colorHue + 0.21).truncatingRemainder(dividingBy: 1.0), saturation: 0.45, brightness: 0.95)
+                    let cMonth  = Color(hue: (colorHue + 0.28).truncatingRemainder(dividingBy: 1.0), saturation: 0.45, brightness: 0.95)
+                    VStack(spacing: 4 * floatScale) {
+                        HStack(spacing: 0) {
+                            Text(hh).foregroundColor(cHour.opacity(0.88))
+                            Text(":").foregroundColor(cHour.opacity(0.44))
+                            Text(mm).foregroundColor(cMinute.opacity(0.88))
+                            Text(":").foregroundColor(cMinute.opacity(0.44))
+                            Text(ss).foregroundColor(cSecond.opacity(0.88))
+                        }
+                        .font(.system(size: 28 * floatScale, weight: .semibold, design: .monospaced))
+                        HStack(spacing: 0) {
+                            Text(dd).foregroundColor(cDay.opacity(0.50))
+                            Text("/").foregroundColor(cDay.opacity(0.25))
+                            Text(mo).foregroundColor(cMonth.opacity(0.50))
+                            Text("/").foregroundColor(cMonth.opacity(0.25))
+                            Text(yyyy).foregroundColor(cMonth.opacity(0.35))
+                        }
+                        .font(.system(size: 14 * floatScale, weight: .semibold, design: .monospaced))
+                    }
+                    .offset(x: floatOffset.width, y: floatOffset.height + geo.size.height * 0.25)
+                    .allowsHitTesting(false)
 
-            VStack(spacing: 0) {
-                headerView
-                Spacer()
-                controlsView.padding(.bottom, 40)
+                    VStack(spacing: 0) {
+                        headerView
+                        Spacer()
+                        controlsView.padding(.bottom, 40)
+                    }
+                    .opacity(showUI ? 1 : 0)
+                    .allowsHitTesting(showUI)
+                    .animation(.easeInOut(duration: 0.3), value: showUI)
+                }
+                .onReceive(timer) { _ in
+                    now    = .init()
+                    phase += 1.0 / 30.0
+                    if autoColor {
+                        colorHue = (colorHue + 0.001).truncatingRemainder(dividingBy: 1.0)
+                    }
+                }
+                } // GeometryReader
             }
-            .opacity(showUI ? 1 : 0)
-            .allowsHitTesting(showUI)
-            .animation(.easeInOut(duration: 0.3), value: showUI)
         }
-        .onReceive(timer) { _ in
-            now    = .init()
-            phase += 1.0 / 30.0
-            if autoColor {
-                colorHue = (colorHue + 0.001).truncatingRemainder(dividingBy: 1.0)
-            }
-        }
-        } // GeometryReader
     }
 
     // MARK: - Header
@@ -354,27 +382,95 @@ struct ClockView: View {
 
     @ViewBuilder
     private var controlsView: some View {
-        HStack(spacing: 12) {
-            Text("COLOR")
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundColor(accent.opacity(0.5))
-                .frame(width: 52, alignment: .leading)
-            Slider(value: $colorHue, in: 0...1).tint(accent)
-            Text(colorLabel)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundColor(accent)
-                .frame(width: 46, alignment: .trailing)
-            Button { autoColor.toggle() } label: {
-                Text("AUTO")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(autoColor ? .black : accent.opacity(0.7))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(autoColor ? accent : accent.opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Text("COLOR")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundColor(accent.opacity(0.5))
+                    .frame(width: 52, alignment: .leading)
+                Slider(value: $colorHue, in: 0...1).tint(accent)
+                Text(colorLabel)
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(accent)
+                    .frame(width: 46, alignment: .trailing)
+                Button { autoColor.toggle() } label: {
+                    Text("AUTO")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundColor(autoColor ? .black : accent.opacity(0.7))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(autoColor ? accent : accent.opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
             }
+            saveButton
         }
         .padding(.horizontal, 24)
+    }
+
+    @ViewBuilder
+    private var saveButton: some View {
+        Button {
+            let snapshot = captureCurrentFrame()
+            let startDate = now
+            Task {
+                await recorder.startClock(colorHue: colorHue, startDate: startDate,
+                                          stillSnapshot: snapshot)
+            }
+        } label: {
+            Text("Save as Live Photo")
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .tracking(2)
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(
+                    LinearGradient(colors: [accent, accent.opacity(0.75)],
+                                   startPoint: .leading, endPoint: .trailing)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .padding(.top, 4)
+    }
+
+    // MARK: - Recording Overlay
+
+    @ViewBuilder
+    private var recordingOverlay: some View {
+        ZStack {
+            Color(red: 0.06, green: 0.05, blue: 0.10).ignoresSafeArea()
+            VStack(spacing: 20) {
+                Spacer()
+                Text(recorder.statusText)
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                if case .rendering(let p) = recorder.state {
+                    VStack(spacing: 8) {
+                        ProgressView(value: p).tint(accent).padding(.horizontal, 40)
+                        Text("\(Int(p * 100))%")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                } else if case .saving = recorder.state {
+                    ProgressView().tint(accent)
+                }
+                Spacer()
+            }
+        }
+    }
+
+    // MARK: - Snapshot
+
+    private func captureCurrentFrame() -> CGImage? {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.keyWindow,
+              window.bounds.width > 0 else { return nil }
+        let renderer = UIGraphicsImageRenderer(bounds: window.bounds)
+        return renderer.image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: false)
+        }.cgImage
     }
 
     private var colorLabel: String {

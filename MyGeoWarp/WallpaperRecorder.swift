@@ -1029,6 +1029,282 @@ final class WallpaperRecorder: ObservableObject {
         }
     }
 
+    // MARK: - Start (RAIN)
+
+    func startRain(speed: Double, colorHue: Double, shape: RainShape) async {
+        let screenSize = windowSize()
+        let authStatus = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        guard authStatus == .authorized || authStatus == .limited else {
+            state = .failed("Photos access denied\nGo to Settings > Privacy > Photos")
+            try? await Task.sleep(for: .seconds(10)); state = .idle; return
+        }
+        startTime = Date()
+        state = .rendering(0)
+        do {
+            let (videoURL, still, contentID) = try await renderRainVideo(
+                speed: speed, colorHue: colorHue, shape: shape, screenSize: screenSize
+            )
+            state = .saving
+            try await saveLivePhoto(videoURL: videoURL, stillImage: still, contentIdentifier: contentID)
+            state = .done
+            if let url = URL(string: "photos-redirect://") { await UIApplication.shared.open(url) }
+            try? await Task.sleep(for: .seconds(3)); state = .idle
+        } catch {
+            state = .failed(error.localizedDescription)
+            try? await Task.sleep(for: .seconds(15)); state = .idle
+        }
+    }
+
+    // MARK: - Render Video (RAIN)
+
+    private func renderRainVideo(
+        speed: Double, colorHue: Double, shape: RainShape, screenSize: CGSize
+    ) async throws -> (URL, CGImage, String) {
+        let fps = 30
+        let duration = 5
+        let totalFrames = Int(duration) * fps
+        let renderScale: CGFloat = 2.0
+        let videoSize = CGSize(
+            width:  screenSize.width  * renderScale,
+            height: screenSize.height * renderScale
+        )
+
+        let videoURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rain_\(UUID().uuidString).mov")
+
+        let writer = try AVAssetWriter(outputURL: videoURL, fileType: .mov)
+
+        let videoInput = AVAssetWriterInput(
+            mediaType: .video,
+            outputSettings: [
+                AVVideoCodecKey:  AVVideoCodecType.h264,
+                AVVideoWidthKey:  Int(videoSize.width),
+                AVVideoHeightKey: Int(videoSize.height),
+                AVVideoCompressionPropertiesKey: [
+                    AVVideoAverageBitRateKey: 8_000_000,
+                    AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
+                ] as [String: Any],
+            ]
+        )
+        videoInput.expectsMediaDataInRealTime = false
+
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(
+            assetWriterInput: videoInput,
+            sourcePixelBufferAttributes: [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                kCVPixelBufferWidthKey  as String: Int(videoSize.width),
+                kCVPixelBufferHeightKey as String: Int(videoSize.height),
+            ]
+        )
+
+        let contentIdentifier = UUID().uuidString
+        let idItem = AVMutableMetadataItem()
+        idItem.identifier = AVMetadataIdentifier(rawValue: "mdta/com.apple.quicktime.content.identifier")
+        idItem.value      = contentIdentifier as NSString
+        idItem.dataType   = "com.apple.metadata.datatype.UTF-8"
+        writer.metadata = [idItem]
+
+        let stillItem = AVMutableMetadataItem()
+        stillItem.identifier = AVMetadataIdentifier(rawValue: "mdta/com.apple.quicktime.still-image-time")
+        stillItem.value      = NSNumber(value: 0)
+        stillItem.dataType   = "com.apple.metadata.datatype.int8"
+
+        let specs: [[String: Any]] = [[
+            kCMMetadataFormatDescriptionMetadataSpecificationKey_Identifier as String:
+                "mdta/com.apple.quicktime.still-image-time",
+            kCMMetadataFormatDescriptionMetadataSpecificationKey_DataType as String:
+                "com.apple.metadata.datatype.int8",
+        ]]
+        var metaDesc: CMFormatDescription?
+        CMMetadataFormatDescriptionCreateWithMetadataSpecifications(
+            allocator: kCFAllocatorDefault,
+            metadataType: kCMMetadataFormatType_Boxed,
+            metadataSpecifications: specs as CFArray,
+            formatDescriptionOut: &metaDesc
+        )
+        let metaInput   = AVAssetWriterInput(mediaType: .metadata, outputSettings: nil, sourceFormatHint: metaDesc)
+        let metaAdaptor = AVAssetWriterInputMetadataAdaptor(assetWriterInput: metaInput)
+
+        writer.add(videoInput)
+        writer.add(metaInput)
+        writer.startWriting()
+        writer.startSession(atSourceTime: .zero)
+
+        metaAdaptor.append(AVTimedMetadataGroup(
+            items: [stillItem],
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(value: 1, timescale: CMTimeScale(fps)))
+        ))
+
+        let startT = Date.timeIntervalSinceReferenceDate
+        let initialFrame = RainFrame(t: startT, speed: speed, colorHue: colorHue, shape: shape, size: screenSize)
+        let renderer = ImageRenderer(content: initialFrame)
+        renderer.scale = renderScale
+
+        var firstFrame: CGImage?
+
+        for i in 0..<totalFrames {
+            renderer.content.t = startT + Double(i) / Double(fps)
+
+            guard let cgImage = renderer.cgImage,
+                  let buffer  = makePixelBuffer(from: cgImage, size: videoSize) else { continue }
+
+            if i == 0 { firstFrame = cgImage }
+
+            let pts = CMTime(value: CMTimeValue(i), timescale: CMTimeScale(fps))
+            while !adaptor.assetWriterInput.isReadyForMoreMediaData {
+                await Task.yield()
+            }
+            adaptor.append(buffer, withPresentationTime: pts)
+
+            if i % 12 == 0 {
+                state = .rendering(Double(i) / Double(totalFrames))
+                await Task.yield()
+            }
+        }
+
+        state = .rendering(1.0)
+        videoInput.markAsFinished()
+        metaInput.markAsFinished()
+
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            writer.finishWriting { cont.resume() }
+        }
+
+        guard writer.status == .completed else {
+            throw WallpaperError.renderFailed(writer.error?.localizedDescription ?? "Unknown error")
+        }
+        guard let still = firstFrame else {
+            throw WallpaperError.renderFailed("Failed to capture first frame")
+        }
+        return (videoURL, still, contentIdentifier)
+    }
+
+    // MARK: - Start (CLOCK)
+
+    func startClock(colorHue: Double, startDate: Date, stillSnapshot: CGImage? = nil) async {
+        let screenSize = windowSize()
+        let authStatus = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        guard authStatus == .authorized || authStatus == .limited else {
+            state = .failed("Photos access denied\nGo to Settings > Privacy > Photos")
+            try? await Task.sleep(for: .seconds(10)); state = .idle; return
+        }
+        startTime = Date()
+        state = .rendering(0)
+        do {
+            let (videoURL, still, contentID) = try await renderClockVideo(
+                colorHue: colorHue, startDate: startDate,
+                screenSize: screenSize, stillSnapshot: stillSnapshot
+            )
+            state = .saving
+            try await saveLivePhoto(videoURL: videoURL, stillImage: still, contentIdentifier: contentID)
+            state = .done
+            if let url = URL(string: "photos-redirect://") { await UIApplication.shared.open(url) }
+            try? await Task.sleep(for: .seconds(3)); state = .idle
+        } catch {
+            state = .failed(error.localizedDescription)
+            try? await Task.sleep(for: .seconds(15)); state = .idle
+        }
+    }
+
+    // MARK: - Render Video (CLOCK)
+
+    private func renderClockVideo(
+        colorHue: Double, startDate: Date,
+        screenSize: CGSize, stillSnapshot: CGImage? = nil
+    ) async throws -> (URL, CGImage, String) {
+        let totalFrames = Int(duration) * fps
+        let renderScale: CGFloat = 2.0
+        let videoSize = CGSize(width: screenSize.width * renderScale,
+                               height: screenSize.height * renderScale)
+
+        let videoURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("clock_\(UUID().uuidString).mov")
+
+        let writer = try AVAssetWriter(outputURL: videoURL, fileType: .mov)
+        let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: [
+            AVVideoCodecKey:  AVVideoCodecType.h264,
+            AVVideoWidthKey:  Int(videoSize.width),
+            AVVideoHeightKey: Int(videoSize.height),
+            AVVideoCompressionPropertiesKey: [
+                AVVideoAverageBitRateKey: 8_000_000,
+                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
+            ] as [String: Any],
+        ])
+        videoInput.expectsMediaDataInRealTime = false
+
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(
+            assetWriterInput: videoInput,
+            sourcePixelBufferAttributes: [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                kCVPixelBufferWidthKey  as String: Int(videoSize.width),
+                kCVPixelBufferHeightKey as String: Int(videoSize.height),
+            ]
+        )
+
+        let contentIdentifier = UUID().uuidString
+        let idItem = AVMutableMetadataItem()
+        idItem.identifier = AVMetadataIdentifier(rawValue: "mdta/com.apple.quicktime.content.identifier")
+        idItem.value      = contentIdentifier as NSString
+        idItem.dataType   = "com.apple.metadata.datatype.UTF-8"
+        writer.metadata   = [idItem]
+
+        let stillItem = AVMutableMetadataItem()
+        stillItem.identifier = AVMetadataIdentifier(rawValue: "mdta/com.apple.quicktime.still-image-time")
+        stillItem.value      = NSNumber(value: 0)
+        stillItem.dataType   = "com.apple.metadata.datatype.int8"
+
+        let specs: [[String: Any]] = [[
+            kCMMetadataFormatDescriptionMetadataSpecificationKey_Identifier as String:
+                "mdta/com.apple.quicktime.still-image-time",
+            kCMMetadataFormatDescriptionMetadataSpecificationKey_DataType as String:
+                "com.apple.metadata.datatype.int8",
+        ]]
+        var metaDesc: CMFormatDescription?
+        CMMetadataFormatDescriptionCreateWithMetadataSpecifications(
+            allocator: kCFAllocatorDefault, metadataType: kCMMetadataFormatType_Boxed,
+            metadataSpecifications: specs as CFArray, formatDescriptionOut: &metaDesc
+        )
+        let metaInput   = AVAssetWriterInput(mediaType: .metadata, outputSettings: nil, sourceFormatHint: metaDesc)
+        let metaAdaptor = AVAssetWriterInputMetadataAdaptor(assetWriterInput: metaInput)
+
+        writer.add(videoInput); writer.add(metaInput)
+        writer.startWriting(); writer.startSession(atSourceTime: .zero)
+        metaAdaptor.append(AVTimedMetadataGroup(
+            items: [stillItem],
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(value: 1, timescale: CMTimeScale(fps)))
+        ))
+
+        let frameView = ClockFrame(t: 0, colorHue: colorHue, startDate: startDate, size: screenSize)
+        let renderer  = ImageRenderer(content: frameView)
+        renderer.scale = renderScale
+
+        var firstFrame: CGImage? = stillSnapshot
+
+        for i in 0..<totalFrames {
+            renderer.content.t = Double(i) / Double(fps)
+            guard let cgImage = renderer.cgImage,
+                  let buffer  = makePixelBuffer(from: cgImage, size: videoSize) else { continue }
+            if i == 0 && firstFrame == nil { firstFrame = cgImage }
+            let pts = CMTime(value: CMTimeValue(i), timescale: CMTimeScale(fps))
+            while !adaptor.assetWriterInput.isReadyForMoreMediaData { await Task.yield() }
+            adaptor.append(buffer, withPresentationTime: pts)
+            if i % 12 == 0 { state = .rendering(Double(i) / Double(totalFrames)); await Task.yield() }
+        }
+
+        state = .rendering(1.0)
+        videoInput.markAsFinished(); metaInput.markAsFinished()
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            writer.finishWriting { cont.resume() }
+        }
+        guard writer.status == .completed else {
+            throw WallpaperError.renderFailed(writer.error?.localizedDescription ?? "Unknown error")
+        }
+        guard let still = firstFrame else {
+            throw WallpaperError.renderFailed("Failed to capture first frame")
+        }
+        return (videoURL, still, contentIdentifier)
+    }
+
     // MARK: - Helpers
 
     private func windowSize() -> CGSize {
