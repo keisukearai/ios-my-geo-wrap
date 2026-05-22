@@ -585,7 +585,7 @@ struct HourglassView: View {
     @State private var speed:      Double = 0.5
     @State private var form:       Double = 0.5
     @State private var colorHue:   Double = 0.08
-    @State private var showUI:     Bool   = true
+    @State private var showUI:     Bool   = false
     @State private var autoColor:  Bool   = false
 
     @State private var isIdle:        Bool = false

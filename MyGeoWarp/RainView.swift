@@ -172,7 +172,7 @@ struct RainView: View {
     @State private var speed:    Double    = 0.5
     @State private var colorHue: Double    = 0.0
     @State private var shape:    RainShape = .circle
-    @State private var showUI:   Bool      = true
+    @State private var showUI:   Bool      = false
 
     @State private var isIdle:        Bool = false
     @State private var lastTouchDate: Date = .now

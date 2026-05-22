@@ -350,7 +350,7 @@ struct ClockView: View {
     @State private var now:           Date   = .init()
     @State private var colorHue:      Double = Double.random(in: 0...1)
     @State private var autoColor:     Bool   = false
-    @State private var showUI:        Bool   = true
+    @State private var showUI:        Bool   = false
     @State private var phase:         Double = 0.0
 
     @State private var isIdle:        Bool = false

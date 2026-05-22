@@ -191,7 +191,7 @@ struct AuroraView: View {
     @State private var speed:  Double = 0.30
     @State private var spread: Double = 0.50
     @State private var color:  Double = 0.0
-    @State private var showUI: Bool   = true
+    @State private var showUI: Bool   = false
 
     @State private var isAutoMode:      Bool   = false
     @State private var autoTargetSpread: Double = 0.50

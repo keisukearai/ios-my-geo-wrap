@@ -486,7 +486,7 @@ struct CrystalView: View {
     @State private var spin:    Double = 0.5
     @State private var gravity: Double = 0.5
     @State private var chaos:   Double = 0.0
-    @State private var showUI:  Bool   = true
+    @State private var showUI:  Bool   = false
 
     @State private var isAutoMode:        Bool   = false
     @State private var autoTargetGravity: Double = 0.5

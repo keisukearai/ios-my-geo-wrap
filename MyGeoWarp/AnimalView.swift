@@ -611,7 +611,7 @@ struct AnimalView: View {
 
     @State private var speed:    Double = 0.5
     @State private var colorHue: Double = 0.3
-    @State private var showUI:   Bool   = true
+    @State private var showUI:   Bool   = false
     @State private var isAutoMode: Bool = false
     @State private var currentAnimal: AnimalKind = AnimalOrder.shared.sequence[0]
 

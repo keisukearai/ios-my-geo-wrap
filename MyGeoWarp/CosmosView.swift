@@ -716,7 +716,7 @@ struct CosmosView: View {
     @State private var tempo:      Double = 0.35
     @State private var colorStyle: Double = 0.0
 
-    @State private var showUI:          Bool   = true
+    @State private var showUI:          Bool   = false
     @State private var isAutoMode:      Bool   = false
     @State private var autoTargetWarp:  Double = 0.0
     @State private var autoTargetChaos: Double = 0.0
