@@ -669,7 +669,11 @@ struct FlowerView: View {
     @State private var autoColorTarget: Double = 0.0
     @State private var lastAutoTick:    Date?  = nil
 
-    private let accent = Color(red: 1.00, green: 0.60, blue: 0.75)
+    @State private var isIdle:        Bool = false
+    @State private var lastTouchDate: Date = .now
+
+    private let accent          = Color(red: 1.00, green: 0.60, blue: 0.75)
+    private let idleCheckTimer  = Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
@@ -677,7 +681,7 @@ struct FlowerView: View {
             if recorder.isActive {
                 recordingOverlay
             } else {
-                TimelineView(.animation(minimumInterval: showUI ? 1.0/30.0 : 1.0/20.0)) { tl in
+                TimelineView(.animation(minimumInterval: isIdle ? 1.0/15.0 : (showUI ? 1.0/30.0 : 1.0/20.0))) { tl in
                     let t = tl.date.timeIntervalSinceReferenceDate
                     ZStack {
                         FlowerCanvas(t: t, kind: currentFlower, nextKind: nextFlower,
@@ -685,6 +689,8 @@ struct FlowerView: View {
                                      speed: speed, colorHue: colorHue)
                             .ignoresSafeArea()
                             .onTapGesture {
+                                lastTouchDate = .now
+                                isIdle = false
                                 withAnimation(.easeInOut(duration: 0.3)) { showUI.toggle() }
                             }
 
@@ -708,6 +714,9 @@ struct FlowerView: View {
             nextFlower    = currentFlower
             morphProgress = 1.0
             scheduleNextFlower()
+        }
+        .onReceive(idleCheckTimer) { _ in
+            if Date().timeIntervalSince(lastTouchDate) >= 60 { isIdle = true }
         }
         .onReceive(Timer.publish(every: 1.0/10.0, on: .main, in: .common).autoconnect()) { now in
             // Morph progress (1.5s transition)

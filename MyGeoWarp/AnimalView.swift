@@ -620,8 +620,12 @@ struct AnimalView: View {
     @State private var autoColorTarget: Double = 0.3
     @State private var lastAutoTick:   Date?  = nil
 
-    private let accent = Color(red: 1.00, green: 0.72, blue: 0.28)
-    private let animalCycleSecs: Double = 10.0
+    @State private var isIdle:        Bool = false
+    @State private var lastTouchDate: Date = .now
+
+    private let accent              = Color(red: 1.00, green: 0.72, blue: 0.28)
+    private let animalCycleSecs:    Double = 10.0
+    private let idleCheckTimer      = Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
@@ -632,7 +636,11 @@ struct AnimalView: View {
         }
         .onChange(of: speed)    { store.scene?.animSpeed = $0 }
         .onChange(of: colorHue) { store.scene?.colorHue = $0 }
-        .onChange(of: showUI)   { store.scene?.view?.preferredFramesPerSecond = $0 ? 30 : 20 }
+        .onChange(of: showUI)   { _ in store.scene?.view?.preferredFramesPerSecond = isIdle ? 15 : (showUI ? 30 : 20) }
+        .onChange(of: isIdle)   { _ in store.scene?.view?.preferredFramesPerSecond = isIdle ? 15 : (showUI ? 30 : 20) }
+        .onReceive(idleCheckTimer) { _ in
+            if Date().timeIntervalSince(lastTouchDate) >= 60 { isIdle = true }
+        }
         .onAppear {
             speed    = Double.random(in: 0.3...0.7)
             colorHue = Double.random(in: 0.0...1.0)
@@ -675,6 +683,8 @@ struct AnimalView: View {
                 SpriteView(scene: store.scene(for: geo.size))
                     .ignoresSafeArea()
                     .onTapGesture {
+                        lastTouchDate = .now
+                        isIdle = false
                         withAnimation(.easeInOut(duration: 0.3)) { showUI.toggle() }
                     }
             }

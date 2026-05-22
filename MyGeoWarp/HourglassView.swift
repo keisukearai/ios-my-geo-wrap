@@ -519,8 +519,12 @@ struct HourglassView: View {
     @State private var showUI:     Bool   = true
     @State private var autoColor:  Bool   = false
 
-    private let accent      = Color(red: 0.95, green: 0.78, blue: 0.45)
-    private let colorTimer  = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+    @State private var isIdle:        Bool = false
+    @State private var lastTouchDate: Date = .now
+
+    private let accent          = Color(red: 0.95, green: 0.78, blue: 0.45)
+    private let colorTimer      = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+    private let idleCheckTimer  = Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()
     private let speedRange: ClosedRange<Double> = 0...0.8
 
     var body: some View {
@@ -534,7 +538,11 @@ struct HourglassView: View {
         .onChange(of: speed)    { store.scene?.speed2    = $0 }
         .onChange(of: form)     { store.scene?.form2     = $0 }
         .onChange(of: colorHue) { store.scene?.colorHue  = $0 }
-        .onChange(of: showUI)   { store.scene?.view?.preferredFramesPerSecond = $0 ? 30 : 20 }
+        .onChange(of: showUI)   { _ in store.scene?.view?.preferredFramesPerSecond = isIdle ? 15 : (showUI ? 30 : 20) }
+        .onChange(of: isIdle)   { _ in store.scene?.view?.preferredFramesPerSecond = isIdle ? 15 : (showUI ? 30 : 20) }
+        .onReceive(idleCheckTimer) { _ in
+            if Date().timeIntervalSince(lastTouchDate) >= 60 { isIdle = true }
+        }
         .onReceive(colorTimer) { _ in
             guard autoColor else { return }
             colorHue = (colorHue + 0.003).truncatingRemainder(dividingBy: 1.0)
@@ -555,6 +563,8 @@ struct HourglassView: View {
                 SpriteView(scene: store.scene(for: geo.size))
                     .ignoresSafeArea()
                     .onTapGesture {
+                        lastTouchDate = .now
+                        isIdle = false
                         withAnimation(.easeInOut(duration: 0.3)) { showUI.toggle() }
                     }
             }

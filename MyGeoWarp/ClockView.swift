@@ -256,11 +256,15 @@ struct ClockView: View {
 
     @StateObject private var recorder = WallpaperRecorder()
 
-    @State private var now:       Date   = .init()
-    @State private var colorHue:  Double = 0.72
-    @State private var autoColor: Bool   = false
-    @State private var showUI:    Bool   = true
-    @State private var phase:     Double = 0.0
+    @State private var now:           Date   = .init()
+    @State private var colorHue:      Double = 0.72
+    @State private var autoColor:     Bool   = false
+    @State private var showUI:        Bool   = true
+    @State private var phase:         Double = 0.0
+
+    @State private var isIdle:        Bool = false
+    @State private var lastTouchDate: Date = .now
+    @State private var lastFrameDate: Date = .now
 
     private let accent = Color(red: 0.55, green: 0.45, blue: 0.90)
     private let timer  = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
@@ -285,6 +289,8 @@ struct ClockView: View {
                               bezelAngle: -(phase / 60.0) * .pi * 2,
                               phase: phase)
                         .onTapGesture {
+                            lastTouchDate = .now
+                            isIdle = false
                             withAnimation(.easeInOut(duration: 0.3)) { showUI.toggle() }
                         }
 
@@ -333,9 +339,16 @@ struct ClockView: View {
                     .allowsHitTesting(showUI)
                     .animation(.easeInOut(duration: 0.3), value: showUI)
                 }
-                .onReceive(timer) { _ in
+                .onReceive(timer) { tick in
+                    let nowIdle = tick.timeIntervalSince(lastTouchDate) >= 60
+                    if nowIdle != isIdle { isIdle = nowIdle }
+
+                    let dt = isIdle ? 1.0/15.0 : 1.0/30.0
+                    guard tick.timeIntervalSince(lastFrameDate) >= dt else { return }
+                    lastFrameDate = tick
+
                     now    = .init()
-                    phase += 1.0 / 30.0
+                    phase += dt
                     if autoColor {
                         colorHue = (colorHue + 0.001).truncatingRemainder(dividingBy: 1.0)
                     }

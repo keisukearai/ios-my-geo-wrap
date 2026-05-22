@@ -723,9 +723,13 @@ struct CosmosView: View {
     @State private var autoNextWarp:    Date   = .distantPast
     @State private var autoNextChaos:   Date   = .distantPast
 
+    @State private var isIdle:        Bool = false
+    @State private var lastTouchDate: Date = .now
+
     @StateObject private var recorder = WallpaperRecorder()
 
-    private let pools = ParticlePools.make()
+    private let pools          = ParticlePools.make()
+    private let idleCheckTimer = Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
@@ -733,7 +737,7 @@ struct CosmosView: View {
             if recorder.isActive {
                 recordingOverlay()
             } else {
-                TimelineView(.animation(minimumInterval: showUI ? 1.0/30.0 : 1.0/20.0)) { tl in
+                TimelineView(.animation(minimumInterval: isIdle ? 1.0/15.0 : (showUI ? 1.0/30.0 : 1.0/20.0))) { tl in
                     let t      = tl.date.timeIntervalSinceReferenceDate
                     let canvas = GeoWarpCanvas(t: t, warp: warp, chaos: chaos,
                                               tempo: tempo, colorStyle: colorStyle, pools: pools)
@@ -742,6 +746,8 @@ struct CosmosView: View {
                         canvas
                             .ignoresSafeArea()
                             .onTapGesture {
+                                lastTouchDate = .now
+                                isIdle = false
                                 withAnimation(.easeInOut(duration: 0.3)) {
                                     showUI.toggle()
                                 }
@@ -763,6 +769,9 @@ struct CosmosView: View {
             warp       = .random(in: 0...1)
             chaos      = .random(in: 0...1)
             colorStyle = .random(in: 0...1)
+        }
+        .onReceive(idleCheckTimer) { _ in
+            if Date().timeIntervalSince(lastTouchDate) >= 60 { isIdle = true }
         }
         .onReceive(Timer.publish(every: 1.0/10.0, on: .main, in: .common).autoconnect()) { now in
             guard isAutoMode else { return }

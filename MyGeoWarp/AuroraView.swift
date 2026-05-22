@@ -198,7 +198,12 @@ struct AuroraView: View {
     @State private var autoNextSpread:   Date   = .distantPast
     @State private var lastAutoTick:     Date?  = nil
 
+    @State private var isIdle:        Bool = false
+    @State private var lastTouchDate: Date = .now
+
     @StateObject private var recorder = WallpaperRecorder()
+
+    private let idleCheckTimer = Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
@@ -206,12 +211,14 @@ struct AuroraView: View {
             if recorder.isActive {
                 recordingOverlay
             } else {
-                TimelineView(.animation(minimumInterval: showUI ? 1.0/30.0 : 1.0/20.0)) { tl in
+                TimelineView(.animation(minimumInterval: isIdle ? 1.0/15.0 : (showUI ? 1.0/30.0 : 1.0/20.0))) { tl in
                     let t = tl.date.timeIntervalSinceReferenceDate
                     ZStack {
                         AuroraCanvas(t: t, speed: speed, spread: spread, colorParam: color)
                             .ignoresSafeArea()
                             .onTapGesture {
+                                lastTouchDate = .now
+                                isIdle = false
                                 withAnimation(.easeInOut(duration: 0.3)) {
                                     showUI.toggle()
                                 }
@@ -234,6 +241,9 @@ struct AuroraView: View {
             speed  = Double.random(in: 0...1)
             spread = Double.random(in: 0...1)
             color  = Double.random(in: 0...1)
+        }
+        .onReceive(idleCheckTimer) { _ in
+            if Date().timeIntervalSince(lastTouchDate) >= 60 { isIdle = true }
         }
         .onReceive(Timer.publish(every: 1.0/10.0, on: .main, in: .common).autoconnect()) { now in
             guard isAutoMode else {

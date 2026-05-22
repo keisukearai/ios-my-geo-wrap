@@ -495,7 +495,11 @@ struct CrystalView: View {
     @State private var autoNextChaos:    Date   = .distantPast
     @State private var lastAutoTick:     Date?  = nil
 
-    private let accent = Color(red: 0.55, green: 0.88, blue: 1.00)
+    @State private var isIdle:        Bool = false
+    @State private var lastTouchDate: Date = .now
+
+    private let accent          = Color(red: 0.55, green: 0.88, blue: 1.00)
+    private let idleCheckTimer  = Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
@@ -508,7 +512,11 @@ struct CrystalView: View {
         .onChange(of: spin)    { store.scene?.spinSpeed    = $0 }
         .onChange(of: gravity) { store.scene?.gravityScale = $0 }
         .onChange(of: chaos)   { store.scene?.chaosLevel   = $0 }
-        .onChange(of: showUI)  { store.scene?.view?.preferredFramesPerSecond = $0 ? 30 : 20 }
+        .onChange(of: showUI)  { _ in store.scene?.view?.preferredFramesPerSecond = isIdle ? 15 : (showUI ? 30 : 20) }
+        .onChange(of: isIdle)  { _ in store.scene?.view?.preferredFramesPerSecond = isIdle ? 15 : (showUI ? 30 : 20) }
+        .onReceive(idleCheckTimer) { _ in
+            if Date().timeIntervalSince(lastTouchDate) >= 60 { isIdle = true }
+        }
         .onAppear {
             spin    = Double.random(in: 0.2...0.8)
             gravity = Double.random(in: 0.3...0.7)
@@ -534,6 +542,8 @@ struct CrystalView: View {
                 SpriteView(scene: store.scene(for: geo.size))
                     .ignoresSafeArea()
                     .onTapGesture {
+                        lastTouchDate = .now
+                        isIdle = false
                         withAnimation(.easeInOut(duration: 0.3)) { showUI.toggle() }
                     }
             }
