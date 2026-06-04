@@ -30,11 +30,11 @@ struct ClockFace: View {
         let d   = Double(calendar.component(.day, from: now))
         let max = Double(calendar.range(of: .day, in: .month, for: now)?.count ?? 30)
         let h   = Double(calendar.component(.hour, from: now)) / 24.0
-        return (d - 1 + h) / max
+        return (d + h) / max
     }
     private var monthFraction: Double {
         let m = Double(calendar.component(.month, from: now))
-        return (m - 1 + dayFraction) / 12.0
+        return ((m + dayFraction) / 12.0).truncatingRemainder(dividingBy: 1.0)
     }
 
     var body: some View {

@@ -623,7 +623,7 @@ struct AnimalView: View {
     @State private var isIdle:        Bool = false
     @State private var lastTouchDate: Date = .now
 
-    private let accent              = Color(red: 1.00, green: 0.72, blue: 0.28)
+    private var accent: Color { Color(hue: colorHue, saturation: 0.75, brightness: 0.92) }
     private let animalCycleSecs:    Double = 10.0
     private let idleCheckTimer      = Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()
 
