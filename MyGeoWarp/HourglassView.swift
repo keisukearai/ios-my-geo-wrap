@@ -32,16 +32,16 @@ struct HourglassFrame: View {
     let form: Double
     let size: CGSize
 
-    private var cycleDuration: Double { 30.0 + (1.0 - speed) * 330.0 }
+    private var cycleDuration: Double { 25.0 + (1.0 - speed) * 275.0 }
 
     private var shapeFactors: (neck: Double, topX: Double, topY: Double, bulge: Double) {
         let slender = form < 0.5 ? (0.5 - form) * 2.0 : 0.0
         let barrel  = form > 0.5 ? (form - 0.5) * 2.0 : 0.0
         return (
             neck: 0.100 - slender * 0.008 - barrel * 0.003,
-            topX: 0.88 * (1.0 - slender * 0.40),
-            topY: 0.88 * (1.0 + slender * 0.50),
-            bulge: 0.88 * barrel * 0.45
+            topX: 0.50 * (1.0 - slender * 0.40),
+            topY: 1.30 * (1.0 + slender * 0.20),
+            bulge: 0.08 + 0.50 * barrel * 0.35
         )
     }
 
@@ -73,6 +73,7 @@ struct HourglassFrame: View {
         ctx.stroke(glassPath, with: .color(metalShadow), lineWidth: 1.8)
         ctx.stroke(glassPath, with: .color(metalSilver), lineWidth: 0.9)
         ctx.stroke(glassPath, with: .color(metalGlint), lineWidth: 0.25)
+        drawCaps(&ctx, cx: cx, cy: cy, r: r, rotation: rotation)
         drawMetalGlint(&ctx, cx: cx, cy: cy, r: r, t: t, rotation: rotation)
     }
 
@@ -104,6 +105,30 @@ struct HourglassFrame: View {
         glint.addLine(to: CGPoint(x: center.x, y: center.y + len))
 
         ctx.stroke(glint, with: .color(Color.white.opacity(0.28 * pulse)), lineWidth: 1.0)
+    }
+
+    private func drawCaps(_ ctx: inout GraphicsContext,
+                           cx: Double, cy: Double, r: Double, rotation: Double) {
+        let shape   = shapeFactors
+        let topX    = r * shape.topX
+        let topY    = r * shape.topY
+        let capW    = topX * 2.5
+        let capH    = r * 0.065
+        let metalFill   = Color(red: 0.62, green: 0.64, blue: 0.68).opacity(0.90)
+        let metalStroke = Color(red: 0.88, green: 0.90, blue: 0.94).opacity(0.80)
+        for signedY in [-topY, topY] {
+            var c = ctx
+            c.translateBy(x: cx, y: cy)
+            c.rotate(by: .radians(rotation))
+            let capRect = CGRect(x: -capW / 2, y: signedY - capH / 2, width: capW, height: capH)
+            let capPath = Path(roundedRect: capRect, cornerRadius: capH / 2)
+            c.fill(capPath, with: .color(metalFill))
+            c.stroke(capPath, with: .color(metalStroke), lineWidth: 0.8)
+            let hlRect = CGRect(x: -capW / 2 + capH, y: signedY - capH * 0.12,
+                                width: capW - capH * 2, height: capH * 0.25)
+            c.fill(Path(roundedRect: hlRect, cornerRadius: capH * 0.12),
+                   with: .color(Color.white.opacity(0.22)))
+        }
     }
 
     private func hourglassCGPath(cx: Double, cy: Double, r: Double, rotation: Double) -> Path {
@@ -201,13 +226,13 @@ class HourglassScene: SKScene {
         didSet { rebuildWalls() }
     }
 
-    private var halfCycleDuration: Double { 5.0 + (1.0 - speed2) * 55.0 }
+    private var halfCycleDuration: Double { 4.1 + (1.0 - speed2) * 45.9 }
     private weak var containerNode: SKNode?
     private var grainNodes: [SKNode] = []
     private var wallNodes:  [SKNode] = []
     private weak var outlineNode: SKShapeNode?
     private weak var glintNode: SKNode?
-    private var streamNodes: [SKSpriteNode] = []
+    private weak var streamEmitter: SKEmitterNode?
 
     override func didMove(to view: SKView) {
         view.preferredFramesPerSecond = 30
@@ -234,19 +259,21 @@ class HourglassScene: SKScene {
 
         // hourglass glass walls (edgeChain physics)
         buildGlassWalls(node: node, r: r)
-        buildFallingStream(node: node, r: r)
+        buildStreamEmitter(r: r)
     }
 
     private func shapeParams() -> (neck: CGFloat, topX: CGFloat, topY: CGFloat, bulge: CGFloat) {
         let r       = containerRadius
-        let baseTop: CGFloat = r * 0.88
+        let baseTopX: CGFloat = r * 0.50
+        let baseTopY: CGFloat = r * 1.30
         let slender = form2 < 0.5 ? CGFloat((0.5 - form2) * 2.0) : 0.0
         let barrel  = form2 > 0.5 ? CGFloat((form2 - 0.5) * 2.0) : 0.0
         let neck: CGFloat = r * (0.100 - slender * 0.008 - barrel * 0.003)
+        let baseBulge: CGFloat = r * 0.08
         return (neck,
-                baseTop * (1.0 - slender * 0.40),
-                baseTop * (1.0 + slender * 0.50),
-                baseTop * barrel * 0.45)
+                baseTopX * (1.0 - slender * 0.40),
+                baseTopY * (1.0 + slender * 0.20),
+                baseBulge + baseTopX * barrel * 0.35)
     }
 
     private func rebuildWalls() {
@@ -254,15 +281,11 @@ class HourglassScene: SKScene {
         let oldWalls   = wallNodes
         let oldOutline = outlineNode
         let oldGlint   = glintNode
-        let oldStream  = streamNodes
         wallNodes = []
-        streamNodes = []
         buildGlassWalls(node: node, r: containerRadius)
-        buildFallingStream(node: node, r: containerRadius)
         oldWalls.forEach   { $0.removeFromParent() }
         oldOutline?.removeFromParent()
         oldGlint?.removeFromParent()
-        oldStream.forEach { $0.removeFromParent() }
     }
 
     private func buildGlassWalls(node: SKNode, r: CGFloat) {
@@ -382,50 +405,63 @@ class HourglassScene: SKScene {
             ])
         ])
         glint.run(.repeatForever(flash))
+
+        // Decorative end caps
+        func addCap(at y: CGFloat) {
+            let capW = topX * 2.5
+            let capH = r * 0.065
+            let capRect = CGRect(x: -capW / 2, y: y - capH / 2, width: capW, height: capH)
+            let capPath = CGPath(roundedRect: capRect, cornerWidth: capH / 2,
+                                 cornerHeight: capH / 2, transform: nil)
+            let cap = SKShapeNode(path: capPath)
+            cap.fillColor   = UIColor(red: 0.62, green: 0.64, blue: 0.68, alpha: 0.90)
+            cap.strokeColor = UIColor(red: 0.88, green: 0.90, blue: 0.94, alpha: 0.80)
+            cap.lineWidth   = 0.8
+            cap.glowWidth   = 0.4
+            cap.zPosition   = 5
+            node.addChild(cap)
+            wallNodes.append(cap)
+            let hlRect = CGRect(x: -capW / 2 + capH, y: y - capH * 0.12,
+                                width: capW - capH * 2, height: capH * 0.25)
+            let hl = SKShapeNode(path: CGPath(roundedRect: hlRect, cornerWidth: capH * 0.12,
+                                              cornerHeight: capH * 0.12, transform: nil))
+            hl.fillColor   = UIColor(white: 1.0, alpha: 0.22)
+            hl.strokeColor = .clear
+            hl.zPosition   = 6
+            node.addChild(hl)
+            wallNodes.append(hl)
+        }
+        addCap(at:  topY)
+        addCap(at: -topY)
     }
 
-    private func buildFallingStream(node: SKNode, r: CGFloat) {
-        let (_, _, topY, _) = shapeParams()
+    private func buildStreamEmitter(r: CGFloat) {
         let grainRadius = r / 44.0 * 0.56
-        let textures: [SKTexture] = (0..<3).map { i in
-            let offset = CGFloat(i) * 0.04
-            let (h, s, b) = grainHSB(at: CGFloat(colorHue), variantOffset: offset)
-            return makeGrainTexture(radius: grainRadius * CGFloat(0.72 + Double(i) * 0.08),
-                                    hue: h, saturation: s, brightness: b)
-        }
-
-        for i in 0..<10 {
-            let grain = SKSpriteNode(texture: textures[i % textures.count],
-                                     size: CGSize(width: grainRadius * 1.45, height: grainRadius * 1.45))
-            grain.alpha = 0.0
-            grain.zPosition = 4
-            grain.position = CGPoint(x: 0, y: 0)
-            node.addChild(grain)
-            streamNodes.append(grain)
-
-            let delay = Double(i) * 0.18
-            let fall = SKAction.sequence([
-                .wait(forDuration: delay),
-                .repeatForever(.sequence([
-                    .run { [weak grain] in
-                        let x = CGFloat.random(in: -grainRadius * 0.35...grainRadius * 0.35)
-                        grain?.position = CGPoint(x: x, y: topY * 0.03)
-                        grain?.alpha = CGFloat.random(in: 0.45...0.72)
-                    },
-                    .group([
-                        .moveBy(x: CGFloat.random(in: -grainRadius * 0.5...grainRadius * 0.5),
-                                y: -r * 0.24,
-                                duration: 0.85),
-                        .sequence([
-                            .fadeAlpha(to: 0.72, duration: 0.18),
-                            .fadeAlpha(to: 0.0, duration: 0.67)
-                        ])
-                    ]),
-                    .wait(forDuration: 0.18)
-                ]))
-            ])
-            grain.run(fall)
-        }
+        let (h, s, b) = grainHSB(at: CGFloat(colorHue))
+        let emitter = SKEmitterNode()
+        emitter.position          = CGPoint(x: size.width / 2, y: size.height / 2)
+        emitter.zPosition         = 4
+        emitter.particleTexture   = makeGrainTexture(radius: grainRadius,
+                                                      hue: h, saturation: s, brightness: b)
+        emitter.particleBirthRate     = 20
+        emitter.particleLifetime      = 0.60
+        emitter.particleLifetimeRange = 0.15
+        emitter.particlePositionRange = CGVector(dx: grainRadius * 0.8, dy: 0)
+        emitter.emissionAngle         = -.pi / 2
+        emitter.emissionAngleRange    = 0.18
+        emitter.particleSpeed         = r * 0.30
+        emitter.particleSpeedRange    = r * 0.06
+        emitter.particleSize          = CGSize(width: grainRadius * 2.2, height: grainRadius * 2.2)
+        emitter.particleColor         = UIColor(hue: h, saturation: s,
+                                                brightness: min(b + 0.15, 1.0), alpha: 1.0)
+        emitter.particleColorBlendFactor = 1.0
+        emitter.particleAlpha         = 0.78
+        emitter.particleAlphaRange    = 0.15
+        emitter.particleAlphaSpeed    = -1.2
+        emitter.xAcceleration         = 0
+        emitter.yAcceleration         = -r * 0.35
+        addChild(emitter)
+        streamEmitter = emitter
     }
 
     // MARK: - Grains
@@ -454,6 +490,7 @@ class HourglassScene: SKScene {
         let grainRadius: CGFloat = r / 44.0 * 0.56
         let mediumGrainRadius: CGFloat = grainRadius * 1.5
         let largeGrainRadius: CGFloat = grainRadius * 2.0
+        let xlargeGrainRadius: CGFloat = grainRadius * 4.0
         let hue = CGFloat(colorHue)
 
         let textures = (0..<5).map { i -> SKTexture in
@@ -468,19 +505,26 @@ class HourglassScene: SKScene {
             let (h, s, b) = grainHSB(at: hue, variantOffset: CGFloat(i) * 0.04)
             return makeGrainTexture(radius: largeGrainRadius, hue: h, saturation: s, brightness: b)
         }
+        let xlargeTextures = (0..<2).map { i -> SKTexture in
+            let (h, s, b) = grainHSB(at: hue, variantOffset: CGFloat(i) * 0.04)
+            return makeGrainTexture(radius: xlargeGrainRadius, hue: h, saturation: s, brightness: b)
+        }
 
         let (neck, topX, topY, _) = shapeParams()
 
-        for i in 0..<346 {
+        for i in 0..<450 {
             let radius: CGFloat
             let tex: SKTexture
-            if i < 35 {          // 2x: ~10%
+            if i < 2 {           // 4x: 2粒
+                radius = xlargeGrainRadius
+                tex = xlargeTextures[i % 2]
+            } else if i < 18 {   // 2x: ~3%
                 radius = largeGrainRadius
                 tex = largeTextures[i % 5]
-            } else if i < 70 {   // 1.5x: ~10%
+            } else if i < 68 {   // 1.5x: ~10%
                 radius = mediumGrainRadius
                 tex = mediumTextures[i % 5]
-            } else {             // 1x: ~80%
+            } else {             // 1x: ~87%
                 radius = grainRadius
                 tex = textures[i % 5]
             }
@@ -530,6 +574,7 @@ class HourglassScene: SKScene {
         let grainRadius       = containerRadius / 44.0 * 0.56
         let mediumGrainRadius = grainRadius * 1.5
         let largeGrainRadius  = grainRadius * 2.0
+        let xlargeGrainRadius = grainRadius * 4.0
         let textures = (0..<5).map { i -> SKTexture in
             let (h, s, b) = grainHSB(at: t, variantOffset: CGFloat(i) * 0.04)
             return makeGrainTexture(radius: grainRadius, hue: h, saturation: s, brightness: b)
@@ -542,19 +587,29 @@ class HourglassScene: SKScene {
             let (h, s, b) = grainHSB(at: t, variantOffset: CGFloat(i) * 0.04)
             return makeGrainTexture(radius: largeGrainRadius, hue: h, saturation: s, brightness: b)
         }
+        let xlargeTextures = (0..<2).map { i -> SKTexture in
+            let (h, s, b) = grainHSB(at: t, variantOffset: CGFloat(i) * 0.04)
+            return makeGrainTexture(radius: xlargeGrainRadius, hue: h, saturation: s, brightness: b)
+        }
         for (i, grain) in grainNodes.enumerated() {
             let tex: SKTexture
-            if i < 35 {
+            if i < 2 {
+                tex = xlargeTextures[i % 2]
+            } else if i < 18 {
                 tex = largeTextures[i % 5]
-            } else if i < 70 {
+            } else if i < 68 {
                 tex = mediumTextures[i % 5]
             } else {
                 tex = textures[i % 5]
             }
             (grain as? SKSpriteNode)?.texture = tex
         }
-        for (i, grain) in streamNodes.enumerated() {
-            grain.texture = textures[i % 5]
+        if let emitter = streamEmitter {
+            let (h, s, b) = grainHSB(at: CGFloat(colorHue))
+            emitter.particleColor   = UIColor(hue: h, saturation: s,
+                                               brightness: min(b + 0.15, 1.0), alpha: 1.0)
+            emitter.particleTexture = makeGrainTexture(radius: containerRadius / 44.0 * 0.56,
+                                                        hue: h, saturation: s, brightness: b)
         }
     }
 
