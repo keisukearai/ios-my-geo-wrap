@@ -48,6 +48,7 @@ struct AuroraCanvas: View {
             for band in bands {
                 drawBand(gfx, size, band: band)
             }
+            drawShootingStars(gfx, size)
             drawHorizonGlow(gfx, size)
             drawVignette(gfx, size)
         }
@@ -67,6 +68,60 @@ struct AuroraCanvas: View {
             var path = Path()
             path.addEllipse(in: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2))
             gfx.fill(path, with: .color(Color.white.opacity(alpha)))
+        }
+    }
+
+    // MARK: - Shooting Stars
+
+    private func fract(_ x: Double) -> Double { x - floor(x) }
+    private func hash(_ n: Double) -> Double { fract(sin(n) * 43758.5453123) }
+
+    private func drawShootingStars(_ gfx: GraphicsContext, _ size: CGSize) {
+        // 4 independent channels → avg ~1 star per 10s; clusters happen when channels overlap
+        for ch in 0..<4 {
+            let fch    = Double(ch)
+            let interval = 10.0 + hash(fch * 17.3) * 6.0        // 10-16 s per channel
+            let gen    = Int(t / interval)
+            let seed   = fch * 1000.0 + Double(gen) * 7.0
+
+            guard hash(seed) < 0.65 else { continue }            // 65% chance to fire
+
+            let genStart = Double(gen) * interval
+            let localT   = t - genStart
+            let duration = 0.5 + hash(seed + 1) * 2.5           // 0.5-3.0 s
+            guard localT >= 0 && localT < duration else { continue }
+
+            let progress   = localT / duration
+            let startX     = (0.2  + hash(seed + 2) * 0.9) * size.width   // 20-110%
+            let startY     = (0.01 + hash(seed + 3) * 0.30) * size.height  // top 31%
+            let tailLen    = 80.0  + hash(seed + 4) * 220.0               // 80-300 px
+            let angleDeg   = 110.0 + hash(seed + 5) * 55.0               // 110°-165°
+            let angleRad   = angleDeg * .pi / 180.0
+            let travelDist = (0.4  + hash(seed + 6) * 0.5) * size.width
+
+            let dx = cos(angleRad)
+            let dy = sin(angleRad)
+            let hx = startX + dx * travelDist * progress
+            let hy = startY + dy * travelDist * progress
+            let tailGrowth = min(1.0, progress * 5.0)
+            let tx = hx - dx * tailLen * tailGrowth
+            let ty = hy - dy * tailLen * tailGrowth
+
+            let alpha  = min(progress * 6.0, 1.0) * pow(1.0 - progress, 1.5)
+            let lineW  = 1.2 + hash(seed + 7) * 0.8
+
+            var path = Path()
+            path.move(to: CGPoint(x: hx, y: hy))
+            path.addLine(to: CGPoint(x: tx, y: ty))
+            gfx.stroke(path, with: .linearGradient(
+                Gradient(stops: [
+                    .init(color: Color.white.opacity(min(1.0, alpha * 1.4)), location: 0.0),
+                    .init(color: Color.white.opacity(alpha * 0.5),           location: 0.5),
+                    .init(color: .clear,                                      location: 1.0),
+                ]),
+                startPoint: CGPoint(x: hx, y: hy),
+                endPoint:   CGPoint(x: tx, y: ty)
+            ), lineWidth: lineW)
         }
     }
 
